@@ -58,6 +58,13 @@ require TOY_HELPER
 Dir[File.join(__dir__, "support", "*.rb")].each { require it }
 
 RSpec.configure do |config|
+  # The default display opens the HTML report, which no spec should do for real.
+  config.before do |example|
+    next if example.file_path.end_with?("runtime/environment_spec.rb")
+
+    allow_any_instance_of(LLM::Evals::Runtime::Environment).to receive(:browse).and_return(false) # rubocop:disable RSpec/AnyInstance
+  end
+
   config.disable_monkey_patching!
   config.expect_with(:rspec) { it.syntax = :expect }
   config.order = :random
