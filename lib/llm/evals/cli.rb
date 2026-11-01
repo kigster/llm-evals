@@ -36,6 +36,7 @@ module LLM
       register "render", Render
       register "cases", Cases
       register "verify", Verify
+      register "weights", Weights
       register "version", Version, aliases: ["-V", "--version"]
       register "completion", Dry::CLI::Autocomplete::Command[self, program_name: PROGRAM]
     end

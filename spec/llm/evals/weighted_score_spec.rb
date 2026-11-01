@@ -5,6 +5,15 @@ RSpec.describe LLM::Evals::WeightedScore do
 
   let(:weights) { { "score" => 1 } }
 
+  describe "#shares" do
+    let(:weights) { { "score" => 0.3, "exact" => 0.5, "cost" => -0.2 } }
+
+    it "gives each weight's part of the total, whatever its sign, largest first" do
+      expect(weighted.shares.keys).to eq(%w[exact score cost])
+      expect(weighted.shares.values).to contain_exactly(be_within(0.001).of(0.5), be_within(0.001).of(0.3), be_within(0.001).of(0.2))
+    end
+  end
+
   describe "#call" do
     it "uses a metric as it is under a positive weight" do
       expect(weighted.call([{ "score" => 0.9 }])).to eq([0.9])
