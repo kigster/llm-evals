@@ -1,85 +1,74 @@
-# LLM Evals
+# LLM Evals:
 
-## CLI command: `llm-evals` or just `evals`
+## A Flexible CLI Framework for running multi-dataset, multi-case evaluation suites.
 
-[![Gem Version](https://badge.fury.io/rb/llm-evals.svg)](https://rubygems.org/gems/llm-evals) [![CircleCI](https://dl.circleci.com/status-badge/img/gh/kigster/llm-evals/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/kigster/llm-evals/tree/main) ![coverage](docs/badges/coverage-badge.svg)
+[![Gem Version](https://badge.fury.io/rb/llm-evals.svg)](https://rubygems.org/gems/llm-evals) [![CircleCI](https://dl.circleci.com/status-badge/img/gh/kigster/llm-evals/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/kigster/llm-evals/tree/main) [![Ruby](https://github.com/kigster/llm-evals/actions/workflows/main.yml/badge.svg)](https://github.com/kigster/llm-evals/actions/workflows/main.yml) ![Coverage](docs/badges/coverage-badge.svg)
 
-> [!CAUTION]
-> This gem is not directly affiliated with the most excellent [ruby_llm](https://rubyllm.com/) ruby gem, but it uses it under the hood.
-
-> [!NOTE]
-> This is a CLI-based gem which installs the command `evals` as well as `llm-evals` if for some reason `evals` is already reserved on your system. The gem is based on DryRb series of gems for it's CLI and main processing module, and on OpenRouter for LLM model connectivity and evaluation.
->
-> In addition, this gem supports OpenTelemetry, and can be wrapped in commercial providers of evals tracing and historical tracking such as [BrainTrust](https://braintrust.ai), [W&B Weave](https://wandb.ai/site/weave/) and others, and borrows many ideas from [Pydantic Evals](https://pydantic.dev/logfire/evals).
->
-> The gem was developed for the Ruby/Rails SaaS site [Qualified.AT](https://qualified.at)
-
-## **Evals are the AI-era unit tests.**
-
-Evals ensure that given a set of conditions, or inputs (or prompts), your probabilistic answer from the LLM remains consistent (whether it's a good answer or a bad one is another question, but consistency is what's so hard to get right out of a probabilistic LLM).
-
-If you are new to evals, I strongly suggest that you consider the following example, for which this gem was originally built — a mini SaaS product [Qualified.At](https://qualified.at) (lead qualification and job cost estimation) — that is built atop of a collection of three MIT-licensed Ruby Gems and two MIT-licensed NPM packages, under the Github Org ["inquirex"](https://github.com/inquirex).
-
-#### References
-
-- [AI Evals: Everything You Need to Know](https://hamel.dev/blog/posts/evals-faq/) (hamel.dev)
-- [Measure against quality baselines](https://www.braintrust.dev/product/evaluate) (Braintrust)
-- [Demystifying evals for AI agents](https://www.anthropic.com/research/demystifying-evals-for-ai-agents) (Anthropic)
-- [Eval Driven System Design - From Prototype to Production](https://developers.openai.com/cookbook/examples/partners/eval_driven_system_design/receipt_inspection) (OpenAI)
-- [Independent eval research. Open methodology, published datasets, and the tools to run your own studies.](https://www.braintrust.dev/evals) (Braintrust)
-- [How to build an LLM eval pipeline in GitHub Actions](https://www.braintrust.dev/articles/llm-eval-pipeline-github-actions) (Braintrust)
-
-### A Real World Example and a Birthplace of this Gem
-
-> [!NOTE]
-> ***If you are familiar with evals, feel free to skip this section.***
-
-The [Inquirex](https://github.com/inquirex) gems provide a powerful DSL for building potentially complex and multi-branching (based on answers) forms with multiple branches of questions, that are decoupled from the rendering engine. Therefore the same exact DSL code defining a form flow, can be rendered in the Terminal using the [inquirex-tty](https://github.com/inquirex/inquirex-tty) gem, or shown in a copilot popup as an HTML form, using NPM modules [inquirex-webui](https://www.npmjs.com/package/inquirex-webui) and [inquirex-widget](https://www.npmjs.com/package/inquirex-widget).
-
-The freemium site [Qualified.At](https://qualified.at) uses the above gems and the DSL they define as an intermediary format for arbitrarily complex intake forms which you can create using a visual editor, or using an AI assistant. You create a form with it's questions and branches, and when you are ready you "publish" it, and copy/paste a few lines of JavaScript on your site. Once there, a visitor comes alone and a pop-up will appear, based on how you configured it, either on click of something, or after a custom delay after the page is done loading. You can even style the copilot automatically to look like your site. So, you've set all these preferences in your account on ***qualified.at***, and the JS served to you includes digests and various security measures to ensure only your site can send leads, and that only that form appears to the visitors to your site and can only be used from the domain you configured.
-
-> The best way to understand the entire concept is to [explore the all ten demos on the site](https://qualified.at/demos), which are all fictitious businesses, of course, but the forms that pop up from the bottom right bubble are live and very real, and if you go through to the end it will save you to our database.
-
-So, leads come to your site, and they might see a copilot form they can interact with.
-
-Say you are an [injury lawfirm](https://qualified.at/demos/personal-injury), or a [tax preparation firm](https://qualified.at/demos/tax-preparation), and I have a legal problem or a work-place injury. I might want to get some very basic answers before I get on the phone, and so I visit the site, and personally, I would be stoked that I don't have to speak to anyone (yet) and that I can just answer some the questions, and perhaps get a quote back.
-
-**The "innovation" here comes from the ability of the form creator to start the form from a free-text field** that the visitor is encouraged to fill out with as much detail as possible, without sharing any PII information, besides their email in the end, **and have that text be sent to an LLM for structured analysis**, to see if perhaps some of the questions down below may have already been answered by the user. This is the case where a 20-30 question form might magically shrink to 4-5 questions + your introductory write-up.
-
-> [!NOTE]
-> For instance, for a Tax Prep service, you might write: ***"I am married with three children, filing jointly, have three side businesses (two LLCs and an S-Corp), a rental property, a house I live in, and yacht that my business purchased for me, with a MacLauren for the commute."*** We can laugh about the fact that this person clearly doesn't get the US Tax system, but what's relevant here is that they provided answers to over 10-15 questions that would have otherwise followed.
-
-### So How do Evals Help Here?
-
-When the service ***qualified.at*** was being built, **it was not at all obvious which vendor, and which model would do the best type of extraction** from an unstructured text to the structured, conforming to a JSON schema mapped to the answers below. Besides accuracy, there are also such parameters as latency (you don't want the user to wait 30 seconds), as well as the cost. For 1000 leaks a cost of 0.0002$ is insignificant. But a cost of $0.5 per call is very much significant.
+A flexible CLI for running multi-case evaluation suites and comparing LLMs and prompt configurations.
 
 > [!IMPORTANT]
-> So, finally we arrive to the question of the day: **which model should I use? Which model captures the most answers, correctly assigns them, does not assign something random (hallucinate), does not miss any answer from the text? And so on.** We want accuracy coupled with low cost and low latency. If the user has to wait 30 seconds to get to the next question, that's a problem.
+> This gem is not affiliated with the excellent [RubyLLM](https://rubyllm.com/) gem, though it uses RubyLLM under the hood.
 
-So this is how this gem was born. And not to spout many empty words, here is the HTML report produced by my eval suite and this gem for this specific questions answered: which model is the best when you include price, latency, accuracy, correctness, completeness, and five other factors!
+> [!NOTE]
+> The `llm-evals` gem installs two commands: `evals` and `llm-evals`. Use `llm-evals` if another installed package already provides the `evals` command. The CLI and runner use [Dry.rb](https://dry-rb.org/), and the default model connection uses OpenRouter.
+>
+> The gem also supports OpenTelemetry and can send evaluation data to services such as [Braintrust](https://braintrust.ai) and [W&B Weave](https://wandb.ai/site/weave/). Some design ideas came from [Pydantic Evals](https://pydantic.dev/logfire/evals).
+>
+> I originally developed the gem for [Qualified.At](https://qualified.at), a Ruby on Rails SaaS product.
 
-![results](docs/img/llm-evals-html-report.avif)
+## Evals are unit tests for probabilistic software
 
-This screenshot is somewhat outdated. I've since reversed the order of the models, so the highest scores (best results) show up at the top, not the other way around. But still, the conclusion is clear as day:
+An eval checks whether a model meets the behavior you expect on a set of representative cases. Repeating the same cases lets you measure how prompts, parameters, and models affect the results. Your scorer decides whether those results are good; the eval makes the comparison consistent.
+
+### References
+
+- [AI Evals: Everything You Need to Know](https://hamel.dev/blog/posts/evals-faq/) (Hamel Husain)
+- [Measure Against Quality Baselines](https://www.braintrust.dev/product/evaluate) (Braintrust)
+- [Demystifying Evals for AI Agents](https://www.anthropic.com/research/demystifying-evals-for-ai-agents) (Anthropic)
+- [Eval-Driven System Design: From Prototype to Production](https://developers.openai.com/cookbook/examples/partners/eval_driven_system_design/receipt_inspection) (OpenAI)
+- [Independent Eval Research](https://www.braintrust.dev/evals) (Braintrust)
+- [How to Build an LLM Eval Pipeline in GitHub Actions](https://www.braintrust.dev/articles/llm-eval-pipeline-github-actions) (Braintrust)
+
+### A real-world example: Qualified.At
+
+> [!NOTE]
+> If you already know what evals are, feel free to skip this section.
+
+This gem grew out of work on [Qualified.At](https://qualified.at), a lead-qualification and job-cost-estimation service. It uses the [Inquirex](https://github.com/inquirex) Ruby gems to define branching forms independently of how they are displayed. The same form can run in a terminal with [inquirex-tty](https://github.com/inquirex/inquirex-tty), or appear as a web form through the [inquirex-webui](https://www.npmjs.com/package/inquirex-webui) and [inquirex-widget](https://www.npmjs.com/package/inquirex-widget) packages.
+
+On Qualified.At, a business can build an intake form in a visual editor or with an AI assistant, publish it, and add it to its website with a few lines of JavaScript. A visitor can open the form and answer questions before speaking with anyone. The forms can also start with a free-text description. An LLM extracts structured answers from that description, which can shrink a 20- or 30-question form to just a few follow-up questions.
+
+You can [explore the ten demos](https://qualified.at/demos). The businesses are fictional, but the forms are live. A completed submission is saved to our database.
+
+For example, someone visiting an [injury law firm](https://qualified.at/demos/personal-injury) or a [tax preparation firm](https://qualified.at/demos/tax-preparation) might want basic answers before calling. Personally, I like being able to answer a few questions and get an estimate without talking to anyone yet.
+
+A tax customer might write: *"I'm married with three children, filing jointly, have three side businesses (two LLCs and an S-Corp), a rental property, a house I live in, a yacht my business bought for me, and a McLaren for the commute."* We can smile at the last part, but the useful point is that one paragraph may answer more than ten questions. The form can ask only for what's still missing.
+
+### Why evals matter here
+
+When we built Qualified.At, it wasn't clear which provider or model would extract answers most accurately from unstructured text and map them to a JSON schema. Accuracy matters, but so do latency and cost. At 1,000 leads, a cost of $0.0002 per call adds up to $0.20; a cost of $0.50 per call adds up to $500.
 
 > [!IMPORTANT]
-> The best model for extraction, by speed, cost, accuracy and everything important to me is anthropic's `claude-haiku-5.5`
+> Which model captures the most answers, assigns them correctly, avoids hallucinations, and doesn't miss details? We want accuracy with low cost and low latency. If a user waits 30 seconds to get to the next question, that's a problem.
 
-______________________________________________________________________
+That question is why I built this gem. The report below compares models on accuracy, completeness, latency, cost, and other metrics for this extraction task.
 
-I've had some experience with evals before, and I wanted to dig deeper into the ideas and concept surrounding them, and build something reusable for the open source community at large. And considering that there is already a Rails integrated version of this concept, in my CLI tooling I lean on DryRB utilities such as `dry-cli`, for which I released three extension gems at **[dry-cli.tools](https://dry-cli.tools).**
+![LLM evaluation HTML report](docs/img/llm-evals-html-report.avif)
 
-______________________________________________________________________
+> [!NOTE]
+> *The screenshot is a little out of date. I later reversed the model order so the best scores appear at the top. In this run, Anthropic's `claude-haiku-5.5` was the best fit for my priorities: speed, cost, and accuracy.*
+
+I had used evals before and wanted to understand the ideas better and build something reusable for the Ruby community. Since this is a CLI tool, I use Dry.rb utilities such as `dry-cli`. I also maintain three extensions at [dry-cli.tools](https://dry-cli.tools).
 
 ## Datasets
 
-This gem relies on you to organize your use-cases in `evals/datasets/<dataset-name>` folders, and for each dataset you should create multiple "cases", so the full structure is `evals/datasets/<dataset-name>/<case>` a case that is different from the rest. You get a sense for this after a lot of trial and error, but say you accomplished the result.
+Organize each use case as a dataset with multiple cases. The [cases-on-disk section](#cases-on-disk) shows the directory layout and how to add variants.
 
 The gem runs every model in your lineup over every case in your folder, in parallel, and prints a leaderboard with scores, tokens and dollars.
 
 You write two small classes: an **adapter** that asks the model, and a **scorer** that grades the answer.
 
-The gem does the rest:
+The gem handles the rest:
 
 - case discovery,
 - the model lineup,
@@ -87,7 +76,7 @@ The gem does the rest:
 - threads,
 - progress bars,
 - the leaderboard,
-- and sending results to Braintrust or Logfire if you so desire.
+- and optional result reporting to Braintrust or Logfire.
 
 ### Why
 
@@ -117,7 +106,7 @@ $ evals compare --local
 └─────────┴─────────────┴─────────┴────────────────┴─────────────┴───────────┴────────┴─────────┘
 ```
 
-Abridged: the real table also has `temp`, `time`, `tok_in` and `tok_out` columns. It's followed by the best value per dataset, in aligned columns with each model last, in the color of its progress bars, after a glossary of every column and a leaderboard for each case variant, over every dataset, so the conclusions come last. `--scores` also prints every experiment by score, with its tracker's link. There is one column per metric your scorer declares.
+This table is abridged. The full table also includes temperature, runtime, and input and output token counts. The report adds a glossary, a best-value summary for each dataset, and a leaderboard for each case variant. The model name appears last in each row and uses the same color as its progress bar. Use `--scores` to print every experiment ranked by score, with a link to its tracker. The report includes one column for each metric declared by your scorer.
 
 ## Run the examples
 
@@ -129,9 +118,9 @@ cd llm-evals
 bundle install
 ```
 
-### The short way: `just`
+### The quick way: `just`
 
-From the repository root, with [`just`](https://github.com/casey/just) installed (`brew install just`)
+Run these commands from the repository root with [`just`](https://github.com/casey/just) installed (`brew install just`):
 
 ```bash
 # Example 1: cases, verify, then compare --local
@@ -149,36 +138,20 @@ just toy run -m fake/echo -d animals --local
 just config-only cases
 ```
 
-The recipes `cd` into the suite's folder for you and, for the config-only suite, set `RUBYLIB` too. The rest of this section is what they do by hand.
+The recipes change into each suite's folder and set `RUBYLIB` for the config-only suite. The following commands show how to run them by hand.
 
 ### Where to run from
 
-`llm-evals` finds its suite by searching **upward from the current directory** for `evals/eval_helper.rb` or `evals/.llm-evals.config.yml`. The repository root has neither, so running there fails:
+`llm-evals` finds a suite by searching **upward from the current directory** for `evals/eval_helper.rb` or `evals/.llm-evals.config.yml`. The repository root has neither, so running there fails:
 
 ```text
 $ bundle exec exe/evals cases
 error: no suite is configured: register an adapter and a scorer in evals/eval_helper.rb, ...
 ```
 
-Either `cd` into a suite's folder (the parent of its `evals/`), or point at the helper with `--helper`.
+Run the command from a suite's folder (the parent of its `evals/` directory), or pass the helper path with `--helper`.
 
-## Examples
-
-The gem comes with two somewhat contrived examples, which live in `spec/fixtures` folder.
-
-You can run both of them from the gem source's root folder by using `just`:
-
-```bash
-just examples
-```
-
-You should see the header for "Toy Suite," then for "Config Only Suite."
-
-You can run individual examples with `just toy` and `just config-only`.
-
-But let's dive a bit deeper.
-
-### 1. The toy suite (`eval_helper.rb` style)
+### The toy suite (`eval_helper.rb` style)
 
 If you use `just` then the easiest way to run the "toy" suite is with `just toy`.
 
@@ -203,13 +176,13 @@ bundle exec evals run -m fake/echo -d animals --local
 bundle exec evals compare --local
 ```
 
-The same commands work from the repository root with `--helper`:
+You can also run the command from the repository root and pass the helper path with `--helper`:
 
 ```bash
 bundle exec exe/llm-evals compare --local --helper spec/fixtures/toy_suite/evals/eval_helper.rb
 ```
 
-What to read in it:
+Files to look at:
 
 | File (under `spec/fixtures/toy_suite/`) | What it shows                                              |
 | --------------------------------------- | ---------------------------------------------------------- |
@@ -220,9 +193,9 @@ What to read in it:
 
 The warning `typesafe/jev-latest refused: needs typesafe; this suite produces prompt` is intentional: it shows a contender being left out rather than scored 0.
 
-### 2. The config-only suite (no `eval_helper.rb`)
+### The config-only suite (no `eval_helper.rb`)
 
-The same suite, with the adapter and scorer named in `.llm-evals.config.yml` instead of Ruby. Its `require: toy_suite/evals` must be loadable, which in a real project means a gem in your bundle. Here the code lives in the toy suite's `lib/`, so add it to the load path with `RUBYLIB`:
+This suite names its adapter and scorer in `.llm-evals.config.yml` instead of registering them in Ruby. Its `require: toy_suite/evals` must be loadable, which in a real project means a gem in your bundle. Here the code lives in the toy suite's `lib/`, so add it to the load path with `RUBYLIB`:
 
 ```bash
 cd spec/fixtures/config_only_suite
@@ -243,22 +216,29 @@ Use the toy suite as a template:
 
 ## Install
 
+Install the CLI directly:
+
+```bash
+gem install llm-evals
+```
+
+Or add the gem to your Gemfile:
+
 ```ruby
-# Gemfile
 gem "llm-evals"
 
 # for OpenRouter, the default provider
 gem "ruby_llm"
 
-# only for the braintrust tracker
+# only for the Braintrust tracker
 gem "braintrust"
 
-# only for the logfire tracker
+# only for the Logfire tracker
 gem "opentelemetry-sdk"
 gem "opentelemetry-exporter-otlp"
 ```
 
-Requires Ruby 3.4 or later. `ruby_llm`, `braintrust` and the OpenTelemetry gems are optional: they load only when a command needs them, and a missing one is named in the error.
+The gem requires Ruby 3.4 or later. `ruby_llm`, `braintrust`, and the OpenTelemetry gems are optional. They load only when a command needs them; if one is missing, the error names it.
 
 ## Writing a suite
 
@@ -359,7 +339,7 @@ A complete, runnable suite lives in [`spec/fixtures/toy_suite/evals/`](spec/fixt
 
 ### A config-only suite
 
-When the adapter and scorer live in your own gem, you need no `eval_helper.rb`. Three optional keys in `.llm-evals.config.yml` name them:
+If your adapter and scorer live in your own gem, you can omit `eval_helper.rb` and name them in `.llm-evals.config.yml`:
 
 ```yaml
 # evals/.llm-evals.config.yml
@@ -368,10 +348,10 @@ adapter: MyGem::Evals::Adapter     # constant names, instantiated with no argume
 scorer: MyGem::Evals::Scorer
 ```
 
-The executable finds `evals/.llm-evals.config.yml` upward from the working directory, roots the suite at `evals/`, requires what `require:` names and instantiates the two constants. `evals/` holds only the config file and `datasets/`:
+The executable searches upward from the working directory for `evals/.llm-evals.config.yml`, sets `evals/` as the suite root, loads the files listed under `require:`, and instantiates the two constants. `evals/` holds only the config file and `datasets/`:
 
 ```text
-lib/my_gem/evals/adapter.rb         # the Ruby, in the gem
+lib/my_gem/evals/adapter.rb        # the Ruby, in the gem
 lib/my_gem/evals/scorer.rb
 evals/.llm-evals.config.yml        # the lineup, plus require/adapter/scorer
 evals/datasets/...
@@ -379,7 +359,7 @@ evals/datasets/...
 
 If `evals/eval_helper.rb` also exists, it loads first and may register either object in code; the config keys fill whatever it left unset. The required file may itself call `LLM::Evals.configure`, for instance to register a provider.
 
-Errors name what is wrong: no adapter or scorer from either source names the file and the keys; a failing `require:` or an unknown constant names the key and its value instead of a bare `LoadError` or `NameError`. [`spec/fixtures/config_only_suite/`](spec/fixtures/config_only_suite/) is the toy suite in this form.
+Errors identify the problem. If neither source provides an adapter or scorer, the error names the file and missing key. A failed `require:` or unknown constant names the key and value instead of showing only a `LoadError` or `NameError`. [`spec/fixtures/config_only_suite/`](spec/fixtures/config_only_suite/) is the toy suite in this form.
 
 ### Cases on disk
 
@@ -404,13 +384,14 @@ The file at the suite root names the models to compare, their settings, and the 
 
 ```yaml
 # evals/.llm-evals.config.yml
-project: my-evals            # Braintrust project name 
-	                           # (BRAINTRUST_PROJECT_ID wins when set)
+project: my-evals            # Env BRAINTRUST_PROJECT_ID takes precedence,
+                             # but this is used as Braintrust project name
+
 request_types: [prompt]      # required: what the suite's adapter sends
 
 defaults:
   effort: default            # default sends none and leaves the model's own setting
-  temperature: 0.1           # lower temperature produces less variation 0 < t < 1
+  temperature: 0.1           # lower temp usually produce less variation (0 < t < 1)
   max_tokens: 8192           # covers the reasoning tokens a high effort spends
   parallelism: 4             # cases in flight per experiment; the default for -p
 
@@ -427,7 +408,8 @@ vendors:                     # the OpenRouter list; every entry takes a prompt
     - model: claude-opus-5
     - model: claude-sonnet-5.5
     - model: claude-haiku-5.5
-      effort: [default, low, high]   # a list expands into one contender per value
+    	# a list expands into one contender per value
+      effort: [default, low, high] 
   openai:
     - model: gpt-4.1-mini
     - model: gpt-4o-mini
@@ -451,7 +433,10 @@ direct:                      # a vendor's own API, one request type each
 
 **`direct:`** Each key names a provider the gem knows (today only `typesafe`). Entries take the same `{model:, effort:, temperature:, max_tokens:}` format, expand the same way, and render as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown key is a configuration error naming the file and the known providers.
 
-#### Weighted score
+#### Weighted Score
+
+> [!IMPORTANT]
+> This is one of those features you never think you'd need, until you realize your results are sortable by a single column and it does not incorporate all of the others! What to do!? The answer is right here. Create a new score, weighted because it gives more or less weight to various resulting scores, and supports both results that are better when they are smaller (latency) and the ones that are better when they are larger (match %, accuracy %), etc.s
 
 Say what matters most, and the leaderboard adds a `wscore` column, ranks by it, and names the best per dataset and overall:
 
@@ -465,13 +450,13 @@ weighted_score:
     errors: -0.1             # one error takes 20 points off the total
 ```
 
-`wscore = Σ(|weight| × goodness) / Σ|weight|`, from 0% to 100%, higher is better. Metrics count as they are, or as `1 - value` under a negative weight. When `errors` is weighted, errors come off the total: 20 points for one, 25 for two, 30 for three, and so on, down to 0%. A failed case has no scores, so no other column notices it. A clean contender gets the whole of the weight on `errors`. `cost` and `time` go on a log scale between the lowest and highest in the table, so each doubling costs the same, however expensive the priciest model is. That makes a weighted score comparable only within one table.
+`wscore = Σ(|weight| × goodness) / Σ|weight|`, from 0% to 100%, higher is better. Metrics count as they are, or as `1 - value` under a negative weight. When `errors` is weighted, errors come off the total: 20 points for one, 25 for two, 30 for three, and so on, down to 0%. A failed case has no metric scores, so the other weighted metrics do not reflect that failure. A contender with no errors earns the full positive contribution from the `errors` weight. `cost` and `time` go on a log scale between the lowest and highest in the table, so each doubling costs the same, however expensive the priciest model is. That makes a weighted score comparable only within one table.
 
 You can weight `score`, `errors`, `time`, `cost` and your scorer's metrics. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
 
 #### Request types
 
-`request_types` is required. It says what the suite's adapter sends. The types belong to the providers and show in `llm-evals --help`; a suite only names them:
+`request_types` is required. It identifies the kind of request the suite's adapter sends. The types belong to the providers and show in `llm-evals --help`; a suite only names them:
 
 | Type       | Provider                                 | Meaning                                              |
 | ---------- | ---------------------------------------- | ---------------------------------------------------- |
@@ -494,8 +479,7 @@ evals verify                             # offline checks: inputs, expected.json
 evals run -m openai/gpt-4.1-mini         # one model, every dataset, per-case breakdown
 evals run -m anthropic/claude-haiku-5.5 -e low -d vague -c vague/00
 evals run --local -o                     # no remote tracker; the breakdowns go to log/
-evals compare                            # everything the lineup lists, leaderboard only
-evals compare                         # uses results.display
+evals compare                            # run the configured model lineup
 evals compare --format html -o report.html
 evals compare --format json -o results.json # save every result for later rendering
 evals render results.json -o report.html # render saved results; no model calls
@@ -513,17 +497,17 @@ evals completion zsh                     # shell completion (bash too)
 | `version`    | Prints the gem version (`-V`)                        | no           |
 | `completion` | Prints a bash or zsh completion script               | no           |
 
-- `cases` prints one row per case: dataset, id, difficulty, the scorer's `summary`, word count.
+- `cases` prints one row per case with its dataset, ID, difficulty, scorer summary, and word count.
 - `verify` reports empty inputs and missing or unparsable `expected.json`, then runs `adapter.verify(dataset)` and `scorer.verify`.
-- `run` and `compare` run one experiment per model and dataset, as many at once as the machine has CPUs. `-j N` / `--concurrency N` sets another limit, and `-j 0` starts them all together. `-p` is separate: the cases in flight inside each experiment.
+- `run` and `compare` run one experiment per model and dataset, up to the machine's CPU count at a time. `-j N` / `--concurrency N` sets another limit, and `-j 0` starts them all together. `-p` is separate: the cases in flight inside each experiment.
 
-Flags shared by `run` and `compare`: `-m/--models`, `-d/--dataset` (every dataset when omitted), `-c/--case`, `-e/--effort`, `-t/--temperature`, `--max-tokens`, `-p/--parallelism`, `-j/--concurrency`, `-C/--config FILE`, `--project NAME`, `--tracker NAME`, `--local`, `--no-open`, `-n/--dry-run`, `-o/--output [FILE]`, `--format tui|html|json`, `--totals overall|variant|both`, `--display none|tui|browser`, `--autosave/--no-autosave`, `--destination DIR` and `--temp-dir DIR`. `--totals` controls the TUI totals tables: the default `overall` compares contenders across all cases, `variant` compares each case folder (such as `complete` or `vague`) across datasets, and `both` prints both views. Completed runs are saved as timestamped JSON by default, independently of the selected display. Browser and TUI reports are rendered from that JSON; `--no-autosave` uses a temporary JSON snapshot under `temp_dir`. Use `llm-evals render results.json` to regenerate HTML from saved results without repeating model calls. `-l` and `-L` are reserved for logging and not yet implemented.
+Flags shared by `run` and `compare`: `-m/--models`, `-d/--dataset` (every dataset when omitted), `-c/--case`, `-e/--effort`, `-t/--temperature`, `--max-tokens`, `-p/--parallelism`, `-j/--concurrency`, `-C/--config FILE`, `--project NAME`, `--tracker NAME`, `--local`, `--no-open`, `-n/--dry-run`, `-o/--output [FILE]`, `--format tui|html|json`, `--totals overall|variant|both`, `--display none|tui|browser`, `--autosave/--no-autosave`, `--destination DIR` and `--temp-dir DIR`. `--totals` controls the TUI totals tables: the default `overall` compares contenders across all cases, `variant` compares each case folder (such as `complete` or `vague`) across datasets, and `both` prints both views. Completed runs are saved as timestamped JSON by default, independently of the selected display. Browser and TUI reports are rendered from that JSON; `--no-autosave` uses a temporary JSON snapshot under `temp_dir`. Use `llm-evals render results.json` to regenerate the HTML report without making model calls again. `-l` and `-L` are reserved for logging and not yet implemented.
 
-**Reading the output.** `results.display` selects no report, a terminal leaderboard, or a browser report. The TUI has one column per metric the scorer declares, ranked by the `primary` one, with a glossary built from each metric's `description`. Browser reports show global and dataset standings, sortable tables, case inputs, expected answers, scores and diagnostics. Provider names and model IDs use separate colors; the hero standings show effort and temperature next to the model. Every JSON snapshot records both parsed CLI options and effective run settings, including expanded model settings and selected cases. `render` turns a saved snapshot into HTML later. Progress bars and warnings go to STDERR, and anything a library prints while the bars redraw is saved to `log/<command>.warnings.<stamp>.log` instead of garbling the screen.
+**Reading the output.** `results.display` selects no report, a terminal leaderboard, or a browser report. The TUI has one column for each metric declared by the scorer and ranks by the primary metric. It also shows a glossary built from each metric's `description`. Browser reports show global and dataset standings, sortable tables, case inputs, expected answers, scores, and diagnostics. Provider names and model IDs use separate colors. Headline standings show effort and temperature alongside each model. Every JSON snapshot records both parsed CLI options and effective run settings, including expanded model settings and selected cases. `render` turns a saved snapshot into HTML later. Progress bars and warnings go to STDERR. Output from libraries is saved to `log/<command>.warnings.<stamp>.log` so it doesn't garble the terminal display.
 
 ## Trackers
 
-The gem always owns the run loop. A **tracker** decides where results go besides the terminal. The local JSON log always runs; at most **one remote tracker** runs beside it.
+The gem owns the run loop. A **tracker** sends results to an external service. The local JSON log is always written, and at most **one remote tracker** runs alongside it.
 
 | Tracker      | Gems                                               | Key                  |
 | ------------ | -------------------------------------------------- | -------------------- |
@@ -531,9 +515,9 @@ The gem always owns the run loop. A **tracker** decides where results go besides
 | `braintrust` | `braintrust`                                       | `BRAINTRUST_API_KEY` |
 | `logfire`    | `opentelemetry-sdk`, `opentelemetry-exporter-otlp` | `LOGFIRE_TOKEN`      |
 
-Choose one with `--tracker NAME`, or let its key select it (see selection order below). Braintrust also takes `BRAINTRUST_PROJECT_ID` or `--project`.
+Choose one with `--tracker NAME`, or let its key select it (see selection order below). Braintrust also accepts `BRAINTRUST_PROJECT_ID` or `--project`.
 
-What each one sends:
+Each tracker sends different data:
 
 - **local** writes `log/llm-evals/<experiment>.<stamp>.json`: settings, means, errors, usage, and one row per case (score, metrics, outcomes, diagnostics, error, usage).
 - **braintrust** creates one experiment per run in the project, with one eval row per case: input, expected, output (or `_error`), the scorer's metrics as scores, and diagnostics, outcomes and usage as metadata. The experiment page opens when the run finishes, unless `--no-open`.
@@ -546,7 +530,7 @@ What each one sends:
 - A chosen tracker whose gem or key is missing fails before any model is called, naming both.
 - `-v` prints which tracker was chosen and why.
 
-Logfire has no Ruby gem of its own. It is an OTLP backend for the standard OpenTelemetry Ruby SDK, so the tracker builds its own tracer provider and exporter and leaves the global one alone. When `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_HEADERS` is already set, those win over `LOGFIRE_TOKEN`, and `-v` says so. Traces only: Logfire's metrics and logs SDKs are pre-1.0.
+Logfire has no Ruby gem of its own. It is an OTLP backend for the standard OpenTelemetry Ruby SDK. The tracker builds its own tracer provider and exporter without changing the global provider. When `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_HEADERS` is already set, those win over `LOGFIRE_TOKEN`, and `-v` says so. The integration sends traces only. Logfire's metrics and logs SDKs are pre-1.0.
 
 ### Writing a tracker
 
@@ -600,23 +584,23 @@ LLM::Evals.configure { |c| c.tracker Weave }
 | ----------------------------- | --------------------------------------------------------- |
 | `OPENROUTER_API_KEY`          | required for any `vendors:` model (OpenRouter)            |
 | `TYPESAFE_API_KEY`            | required for a `direct: typesafe:` model                  |
-| `BRAINTRUST_API_KEY`          | the braintrust tracker; selects it when nothing else does |
+| `BRAINTRUST_API_KEY`          | the Braintrust tracker; selects it when nothing else does |
 | `BRAINTRUST_PROJECT_ID`       | Braintrust project UUID; beats the lineup's `project`     |
-| `LOGFIRE_TOKEN`               | the logfire tracker (a write token); selects it likewise  |
+| `LOGFIRE_TOKEN`               | the Logfire tracker (a write token); selects it likewise  |
 | `LOGFIRE_BASE_URL`            | Logfire region; default `https://logfire-us.pydantic.dev` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | when set, logfire uses it instead of `LOGFIRE_TOKEN`      |
 | `OTEL_EXPORTER_OTLP_HEADERS`  | likewise                                                  |
 | `LLM_EVALS_HELPER`            | a helper to load instead of searching upward              |
 
-The suite's `env_files` load first, without overriding what is already exported. A missing key fails the run before any model is called, naming the variable.
+The suite loads files listed in `env_files`, without overriding variables already exported in the environment. A missing key fails the run before any model is called, naming the variable.
 
 ## Writing a provider
 
-A provider wraps one API: the request type it answers, the keys it needs, the models it lists, and `complete`.
+A provider wraps an API. It declares the request types it supports, required keys, available models, and a `complete` method.
 
 - A provider that serves `vendors:` ids declares which ones with `prefix`.
 - A `direct?` provider is reached only through a `direct:` key matching its `name`.
-- Register it with `c.provider`. The last registered is asked first for a `vendors:` id; OpenRouter, which claims every id, is always asked last.
+- Register it with `c.provider`. Providers are checked in reverse registration order for a `vendors:` ID. OpenRouter claims every ID, so it is always checked last.
 
 ```ruby
 class Ollama < LLM::Evals::Providers::Base
@@ -757,7 +741,7 @@ just ci
 # Both example suites through the executable: cases, verify, compare --local
 just examples
 
-# Build the .gem into pkg/; publish pushes it (RubyGems OTP from 1Password)
+# Build the .gem into pkg/; publishing to RubyGems requires an OTP
 just build
 just publish
 
@@ -765,8 +749,16 @@ just publish
 lefthook install
 ```
 
-Specs build real directories under `Dir.mktmpdir` and never reach the network. `RubyLLM`, the Braintrust API classes and `Net::HTTP` are stubbed, and the trackers are asserted through OpenTelemetry's in-memory span exporter.
+Specs create real directories under `Dir.mktmpdir` and never access the network. They stub `RubyLLM`, the Braintrust API classes, and `Net::HTTP`. Tracker behavior is checked with OpenTelemetry's in-memory span exporter.
 
 ## License
 
 MIT. See [LICENSE.txt](LICENSE.txt).
+
+## Author
+
+Written by Konstantin Gredeskoul, © 2026 for the [Qualified.At](https://qualified.at) project.
+
+## Contributions
+
+Are welcome! Submit a PR, an issue, we love to collaborate!
