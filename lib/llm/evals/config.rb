@@ -51,10 +51,6 @@ module LLM
       # question API, whose request shape the first such suite will define.
       REQUEST_TYPES = %w[prompt typesafe].freeze
 
-      SECTION_KEYS = %w[rate_limit vendors models].freeze
-      VENDOR_KEYS = %w[rate_limit models].freeze
-      ENTRY_KEYS = %w[model effort temperature max_tokens rate_limit].freeze
-
       BUILTIN = {
         "effort" => "default", "temperature" => 0.2, "max_tokens" => 4096, "parallelism" => 4
       }.freeze
@@ -169,26 +165,17 @@ module LLM
       # @return [Array<Contender>]
       # @raise [Error] on a section or entry the file format does not have
       def contenders(overrides = {})
-        sections.flat_map do |provider, section|
-          listed(provider, section).flat_map do |_scope, id, entry|
-            expand(id, entry, overrides, provider: provider.direct? ? provider.name.to_sym : nil)
-          end
+        listing.entries.flat_map do |entry|
+          expand(entry.id, entry.settings, overrides, provider: entry.provider.direct? ? entry.provider.name.to_sym : nil)
         end
       end
 
-      # The file's `rate_limit`s, ready for calls.
+      # The file's `rate_limit`s, ready for calls. The same one every time, since
+      # the limits only hold if every model of a run shares them.
       #
       # @return [Throttle]
-      # @raise [Error] on a limit that is missing a number or out of range
-      def throttle
-        limits = {}
-        sections.each do |provider, section|
-          limit(limits, provider.name, section)
-          vendors_of(section).each { |vendor, listing| limit(limits, "#{provider.name}/#{vendor}", listing) }
-          listed(provider, section).each { |scope, _id, entry| limit(limits, scope, entry) }
-        end
-        Throttle.new(limits)
-      end
+      # @raise [Error] on a limit that is missing a number, out of range or set twice
+      def throttle = @throttle ||= Throttle.new(listing.limits)
 
       # The models given on the command line, at the file's default settings.
       #
@@ -201,67 +188,7 @@ module LLM
 
       private
 
-      # @return [Array<Array(Providers::Base, Hash)>] the file's provider sections
-      # @raise [Error] on the old top-level keys, or a section naming no provider
-      def sections
-        retired = %w[vendors direct] & @data.keys
-        raise Error, "#{path}: #{retired.join(" and ")} no longer exist; run `evals upgrade-config` to move them under provider sections" if retired.any?
-
-        names = providers.map(&:name)
-        @data.filter_map do |name, section|
-          next unless section.is_a?(Hash) && section.keys.intersect?(%w[vendors models])
-          raise Error, "#{path}: unknown provider #{name.inspect}; known: #{names.join(", ")}" unless names.include?(name.to_s)
-
-          known!(name, section, SECTION_KEYS)
-          [providers.find { it.name == name.to_s }, section]
-        end
-      end
-
-      def vendors_of(section)
-        vendors = section["vendors"] || {}
-        raise Error, "#{path}: vendors must be a mapping of vendor to models" unless vendors.is_a?(Hash)
-
-        vendors.each do |vendor, listing|
-          raise Error, "#{path}: vendor #{vendor} needs a models: list" unless listing.is_a?(Hash)
-
-          known!(vendor, listing, VENDOR_KEYS)
-        end
-      end
-
-      # @return [Array<Array(String, String, Hash)>] each entry's throttle scope, model id and settings
-      def listed(provider, section)
-        grouped = vendors_of(section).flat_map do |vendor, listing|
-          entries(vendor, listing).map { ["#{provider.name}/#{vendor}/#{it["model"]}", "#{provider.prefix}#{vendor}/#{it["model"]}", it] }
-        end
-        grouped + entries(provider.name, section).map { ["#{provider.name}/#{it["model"]}", "#{provider.prefix}#{it["model"]}", it] }
-      end
-
-      def entries(owner, listing)
-        Array(listing["models"]).map do |entry|
-          entry = { "model" => entry } if entry.is_a?(String)
-          raise Error, "#{path}: every entry under #{owner} needs a model" unless entry.is_a?(Hash) && entry["model"]
-
-          known!(entry["model"], entry, ENTRY_KEYS)
-          entry
-        end
-      end
-
-      def known!(owner, mapping, keys)
-        unknown = mapping.keys - keys
-        raise Error, "#{path}: unknown keys under #{owner}: #{unknown.join(", ")}; known: #{keys.join(", ")}" if unknown.any?
-      end
-
-      def limit(limits, scope, owner)
-        given = owner["rate_limit"]
-        return if given.nil?
-
-        burst, per_minute = given.values_at("burst", "per_minute") if given.is_a?(Hash)
-        unless [burst, per_minute].all? { it.is_a?(Integer) && it.positive? } && given.size == 2
-          raise Error, "#{path}: rate_limit of #{scope} needs burst and per_minute, whole numbers above 0"
-        end
-
-        limits[scope] = Throttle::Limit.new(burst:, per_minute:)
-      end
+      def listing = @listing ||= Listing.new(@data, path:, providers:)
 
       def expand(model, entry, overrides, provider: nil)
         settings = defaults.merge(entry).merge(overrides.compact)

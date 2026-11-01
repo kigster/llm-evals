@@ -429,7 +429,7 @@ typesafe:                    # requires TYPESAFE_API_KEY; request type "typesafe
 
 **Settings.** `effort` and `temperature` take one value or a list, and lists multiply: `effort: [low, high]` with `temperature: [0.0, 0.7]` runs four experiments for that model. Anything left out falls back to `defaults`. Flags (`-e`, `-t`, `--max-tokens`, `-p`) beat both.
 
-**`rate_limit`.** It goes on a provider, a vendor or a model, and needs both numbers: the first `burst` calls go at once, then `per_minute`, evenly spaced. A call waits on every limit that matches it. Limits hold for one process across all `-j` and `-p`, and models given with `-m` obey them too. Time spent waiting is left out of `time`, `latency` and `p95`; `time` subtracts the wait averaged across the experiment's workers.
+**`rate_limit`.** It goes on a provider, a vendor or a model, and needs both numbers: the first `burst` calls of the run go at once, then `per_minute`, evenly spaced. A burst is spent once per run and does not refill. A model listed twice shares one limit, so setting it on both entries is an error. A call waits on every limit that matches it. Limits hold for one process across all `-j` and `-p`, and models given with `-m` obey them too. Time spent waiting is left out of `time`, `latency` and `p95`; `time` subtracts the wait averaged across the experiment's workers.
 
 **Retries.** RubyLLM's retries are off. Rate limits, overloads, server errors and dropped connections are retried up to 5 attempts in all, and a retry shuts that vendor for every thread, for as long as `Retry-After` says or for 1, 2, 4 then 8 seconds when it says nothing. A provider asking for more than 5 minutes is not retried; the case counts as an error.
 

@@ -82,6 +82,8 @@ module LLM
         adapter.prepare(dataset)
         trackers.each { it.start(self) }
         errors = run_locally(on_case)
+        # An approximation: it assumes waits fell evenly across the workers. Workers
+        # that wait while others run did not hold up the run for that long.
         summary = summarize(errors, nil, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started - (@waited / workers))
         urls = trackers.map { it.finish(self, summary)&.fetch(:url, nil) }
         summary.with(permalink: urls.compact.first)

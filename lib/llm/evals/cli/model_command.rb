@@ -111,7 +111,7 @@ module LLM
 
         def experiment(contender, config, options, dataset:)
           Experiment.new(
-            model:       providers.model_for(contender),
+            model:       providers.model_for(contender, throttle: config.throttle),
             cases:       cases_for(options[:case], dataset: dataset),
             adapter:     configuration.adapter,
             scorer:      scorer,
@@ -179,7 +179,6 @@ module LLM
         # @return [Array<Contender>]
         # @raise [Error] when neither names any model
         def contenders(config, models, options)
-          configuration.throttle = config.throttle
           models = models.flat_map { it.split(",") }
           found = models.empty? ? config.contenders(overrides(options)) : config.contenders_for(models, overrides(options))
           raise Error, "no models: list some under a provider in #{config.path}, or pass -m" if found.empty?
