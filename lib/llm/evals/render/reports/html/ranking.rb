@@ -7,7 +7,7 @@ module LLM
         class HTML
           # How the page measures a contender and ranks a group of them. Standings
           # and dataset sections differ in what they group, never in this.
-          class Scoring
+          class Ranking
             # @param result [RunResult]
             # @return [Boolean] whether the result counts for nothing
             def self.failed?(result) = !result.score || result.failed? || result.reply&.error?

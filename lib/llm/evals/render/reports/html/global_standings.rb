@@ -9,18 +9,18 @@ module LLM
           # every dataset. Only complete contenders are ranked.
           class GlobalStandings
             # @param summaries [Array<Experiment::Summary>]
-            # @param scoring [Scoring]
-            def initialize(summaries, scoring)
+            # @param ranking [Ranking]
+            def initialize(summaries, ranking)
               @summaries = summaries
-              @scoring = scoring
+              @ranking = ranking
             end
 
             # @return [Hash{Symbol => Object}] report entries and ranking after coverage checks
             def to_h
               expected_keys = @summaries.flat_map(&:results).map { it.case.key }.uniq
-              entries = groups.map { @scoring.entry(it, expected_keys) }
+              entries = groups.map { @ranking.entry(it, expected_keys) }
               complete = entries.select { it[:complete] }
-              @scoring.rank(complete)
+              @ranking.rank(complete)
               ranked = complete.sort_by { it[:ranking] || -1 }
               { entries:, expected_count: expected_keys.length, ranked:, leader: ranked.last, best_coverage: entries.max_by { it[:successful] } }
             end

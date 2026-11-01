@@ -15,7 +15,7 @@ module LLM
             # @param report [JSON::Loaded]
             def initialize(report)
               @report = report
-              @scoring = Scoring.new(metrics: report.metrics, weighted_score: report.weighted_score)
+              @ranking = Ranking.new(metrics: report.metrics, weighted_score: report.weighted_score)
             end
 
             # @return [String]
@@ -31,7 +31,7 @@ module LLM
             # @return [Hash{Symbol => Object}] health counts and cost for the template
             def health_summary
               usage = summaries.map(&:usage).reduce(Usage.zero, :+)
-              failed = results.count { Scoring.failed?(it) }
+              failed = results.count { Ranking.failed?(it) }
               { successful:    results.size - failed,
                 total:         results.size,
                 failed:,
@@ -41,11 +41,11 @@ module LLM
             end
 
             # @return [Hash{Symbol => Object}] see {GlobalStandings#to_h}
-            def global_standings = GlobalStandings.new(summaries, @scoring).to_h
+            def global_standings = GlobalStandings.new(summaries, @ranking).to_h
 
             # @return [Array<Hash{Symbol => Object}>] see {DatasetSection#to_h}
             def dataset_reports
-              summaries.group_by(&:dataset).sort.map { |name, group| DatasetSection.new(name, group, @scoring).to_h }
+              summaries.group_by(&:dataset).sort.map { |name, group| DatasetSection.new(name, group, @ranking).to_h }
             end
 
             # @param kase [Case]
@@ -63,7 +63,7 @@ module LLM
             def ranking_value(entry) = entry[:ranking]
 
             # @return [String]
-            def primary_metric = @scoring.primary_metric
+            def primary_metric = @ranking.primary_metric
 
             # @return [String]
             def weight_description
