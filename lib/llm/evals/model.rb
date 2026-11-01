@@ -55,10 +55,14 @@ module LLM
         @throttle.call(self) { provider.ask(self, state: state, questions: questions) }
       end
 
+      # @return [String] the effort as reports show it; "default" sends none
+      def effort_label = effort || "default"
+
+      # @return [Float, String] the temperature as reports show it; "default" sends none
+      def temperature_label = temperature.nil? ? "default" : temperature
+
       # @return [String] e.g. "effort=low t=0.2"
-      def label
-        "effort=#{effort || "default"} t=#{temperature.nil? ? "default" : temperature}"
-      end
+      def label = "effort=#{effort_label} t=#{temperature_label}"
 
       def to_s = "#{id} #{label}"
     end

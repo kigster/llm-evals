@@ -52,7 +52,7 @@ module LLM
           weights = standings.weighted_scores(summaries)
           ranked = summaries.sort_by { [it.dataset, -((weighted ? weights[it] : it.mean(primary)) || -1)] }
           rows = ranked.map do |s|
-            [s.dataset, s.model.id, s.model.effort || "default", temperature_cell(s),
+            [s.dataset, s.model.id, s.model.effort_label, s.model.temperature_label,
              *(percent(weights[s]) if weighted),
              *metrics.map { percent(s.mean(it)) },
              s.errors.size, format("%.1fs", s.duration), s.usage.input_tokens, s.usage.output_tokens, dollars(s.usage.cost_usd)]
@@ -100,9 +100,7 @@ module LLM
           out.puts "best wscore#{label}: #{format("%.1f%%", value * 100)}, by the weights in weighted_score"
         end
 
-        def contender_label(summary) = "#{summary.model.id} effort=#{summary.model.effort || "default"}"
-
-        def temperature_cell(summary) = summary.model.temperature.nil? ? "default" : summary.model.temperature
+        def contender_label(summary) = "#{summary.model.id} effort=#{summary.model.effort_label}"
 
         # The selected totals view: one aggregate table, one per variant, or both.
         #
@@ -138,7 +136,7 @@ module LLM
         def contender_table(groups)
           rows = groups.map do |g|
             s = g[:first]
-            [s.model.id, s.model.effort || "default", temperature_cell(s), *(percent(g[:weighted]) if weighted), percent(g[:value]),
+            [s.model.id, s.model.effort_label, s.model.temperature_label, *(percent(g[:weighted]) if weighted), percent(g[:value]),
              g[:errors], g[:usage].input_tokens, g[:usage].output_tokens, dollars(g[:usage].cost_usd)]
           end
           table.call(rows,
@@ -152,7 +150,7 @@ module LLM
         def score_table(summaries)
           weights = standings.weighted_scores(summaries)
           rows = summaries.sort_by { -(it.score || -1) }.map do |s|
-            [s.model.id, s.model.effort || "default", s.dataset, percent(s.score), *(percent(weights[s]) if weighted), dollars(s.usage.cost_usd), s.permalink || "-"]
+            [s.model.id, s.model.effort_label, s.dataset, percent(s.score), *(percent(weights[s]) if weighted), dollars(s.usage.cost_usd), s.permalink || "-"]
           end
           table.call(rows, header: ["model", "effort", "dataset", "score", *("wscore" if weighted), "cost", "url"], fill: 0)
         end
@@ -168,7 +166,7 @@ module LLM
         def winners(title, summaries, label)
           return if summaries.empty?
 
-          rows = summaries.map { ["[#{it.dataset}]", "effort=#{it.model.effort || "default"}", "#{label}=#{percent(yield(it))}", dollars(it.usage.cost_usd)] }
+          rows = summaries.map { ["[#{it.dataset}]", "effort=#{it.model.effort_label}", "#{label}=#{percent(yield(it))}", dollars(it.usage.cost_usd)] }
           widths = rows.transpose.map { |column| column.map(&:length).max }
           out.puts title
           rows.zip(summaries).each do |(dataset, effort, value, cost), summary|

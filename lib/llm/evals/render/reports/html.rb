@@ -66,11 +66,11 @@ module LLM
 
           # @param model [Model]
           # @return [String] escaped effort setting, or `default`
-          def effort_label(model) = escape(model.effort || "default")
+          def effort_label(model) = escape(model.effort_label)
 
           # @param model [Model]
           # @return [String] escaped temperature setting, or `default`
-          def temperature_label(model) = escape(model.temperature.nil? ? "default" : model.temperature)
+          def temperature_label(model) = escape(model.temperature_label)
 
           # @param value [Object]
           # @return [String]
