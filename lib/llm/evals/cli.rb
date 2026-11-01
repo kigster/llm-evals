@@ -12,6 +12,8 @@ module LLM
       # exe/llm-evals exists only for a system where `evals` is taken.
       PROGRAM = "evals"
 
+      Dry::CLI::Help::Screens::Command.prepend(OptionGroups)
+
       Dry::CLI::Help.configure do
         configuration = LLM::Evals.configuration
         title configuration.name == Runtime::Configuration::DEFAULT_NAME ? PROGRAM : "#{PROGRAM} (#{configuration.name})"

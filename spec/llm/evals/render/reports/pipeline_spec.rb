@@ -69,6 +69,14 @@ RSpec.describe LLM::Evals::Render::Reports::Pipeline do
     end
   end
 
+  it "draws the terminal view and opens the page with both displays" do
+    shown = []
+    result = pipeline.call(**arguments, autosave: true, display: "both", open: true) { shown << it }
+    expect(shown.size).to eq(1)
+    expect(File).to exist(result.html_path)
+    expect(runtime).to have_received(:browse)
+  end
+
   it "does not open a browser when open is false" do
     result = pipeline.call(**arguments, autosave: false, display: "browser", open: false)
     expect(result.browser_opened).to be_nil

@@ -399,7 +399,7 @@ results:
   autosave: true             # save every completed run as JSON (default)
   destination: ./evals/results/
   temp_dir: ./tmp            # temporary JSON when autosave is false
-  display: browser           # none, tui or browser
+  display: both              # none, tui, browser or both (default)
 
                              # A section named after a provider states the key it needs.
 openrouter:                  # requires OPENROUTER_API_KEY; every entry takes a prompt
@@ -516,7 +516,7 @@ evals completion zsh                     # shell completion (bash too)
 
 Flags shared by `run` and `compare`: `-m/--models`, `-d/--dataset` (every dataset when omitted), `-c/--case`, `-e/--effort`, `-t/--temperature`, `--max-tokens`, `-p/--parallelism`, `-j/--concurrency`, `-C/--config FILE`, `--project NAME`, `--tracker NAME`, `--local`, `--no-open`, `-n/--dry-run`, `-o/--output [FILE]`, `--format tui|html|json`, `--totals overall|variant|both`, `--display none|tui|browser`, `--autosave/--no-autosave`, `--destination DIR` and `--temp-dir DIR`. `--totals` controls the TUI totals tables: the default `overall` compares contenders across all cases, `variant` compares each case folder (such as `complete` or `vague`) across datasets, and `both` prints both views. Completed runs are saved as timestamped JSON by default, independently of the selected display. Browser and TUI reports are rendered from that JSON; `--no-autosave` uses a temporary JSON snapshot under `temp_dir`. Use `llm-evals render results.json` to regenerate the HTML report without making model calls again. `-l` and `-L` are reserved for logging and not yet implemented.
 
-**Reading the output.** `results.display` selects no report, a terminal leaderboard, or a browser report. The TUI has one column for each metric declared by the scorer and ranks by the primary metric. It also shows a glossary built from each metric's `description`. Browser reports show global and dataset standings, sortable tables, case inputs, expected answers, scores, and diagnostics. Provider names and model IDs use separate colors. Headline standings show effort and temperature alongside each model. Every JSON snapshot records both parsed CLI options and effective run settings, including expanded model settings and selected cases. `render` turns a saved snapshot into HTML later. Progress bars and warnings go to STDERR. Output from libraries is saved to `log/<command>.warnings.<stamp>.log` so it doesn't garble the terminal display.
+**Reading the output.** `results.display` selects no report, a terminal leaderboard, a browser report, or, by default, both: the HTML report is built from the run's JSON and opened in the browser. `--display tui` skips the page, and `--no-open` writes it without opening it. The TUI has one column for each metric declared by the scorer and ranks by the primary metric. It also shows a glossary built from each metric's `description`. Browser reports show global and dataset standings, sortable tables, case inputs, expected answers, scores, and diagnostics. Provider names and model IDs use separate colors. Headline standings show effort and temperature alongside each model. Every JSON snapshot records both parsed CLI options and effective run settings, including expanded model settings and selected cases. `render` turns a saved snapshot into HTML later. Progress bars and warnings go to STDERR. Output from libraries is saved to `log/<command>.warnings.<stamp>.log` so it doesn't garble the terminal display.
 
 ## Trackers
 

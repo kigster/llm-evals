@@ -17,7 +17,7 @@ module LLM
           autosave = section.fetch("autosave", true)
           raise Error, "#{path}: results.autosave must be true or false" unless [true, false].include?(autosave)
 
-          display = section.fetch("display", "tui").to_s
+          display = section.fetch("display", DEFAULT_DISPLAY).to_s
           raise Error, "#{path}: results.display must be one of #{RESULT_DISPLAYS.join(", ")}" unless RESULT_DISPLAYS.include?(display)
 
           new(autosave:,
