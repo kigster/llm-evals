@@ -41,7 +41,7 @@ module LLM
       # @param json [Boolean] ask the provider for a JSON object reply where it supports that
       # @return [Completion]
       def complete(user:, system: nil, json: true)
-        provider.complete(self, system: system, user: user, json: json)
+        LLM::Evals.configuration.throttle.call(self) { provider.complete(self, system: system, user: user, json: json) }
       end
 
       # @return [String] e.g. "effort=low t=0.2"

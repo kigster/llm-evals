@@ -188,7 +188,7 @@ Files to look at:
 | --------------------------------------- | ---------------------------------------------------------- |
 | `evals/eval_helper.rb`                  | `LLM::Evals.configure`: suite, cases glob, adapter, scorer |
 | `lib/toy_suite/evals.rb`                | the adapter and scorer classes                             |
-| `evals/.llm-evals.config.yml`           | the lineup, including a `direct:` entry the suite refuses  |
+| `evals/.llm-evals.config.yml`           | the lineup, including a TypeSafe entry the suite refuses   |
 | `evals/datasets/`                       | the case layout on disk                                    |
 
 The warning `typesafe/jev-latest refused: needs typesafe; this suite produces prompt` is intentional: it shows a contender being left out rather than scored 0.
@@ -211,7 +211,7 @@ Use the toy suite as a template:
 
 1. Copy its `evals/` folder into your project.
 1. Replace the adapter and scorer with your own (see [Writing a suite](#writing-a-suite)).
-1. List real models under `vendors:` in `.llm-evals.config.yml` and drop the `fake:` entries.
+1. List real models under `openrouter:` in `.llm-evals.config.yml` and drop the `fake:` section.
 1. Add `gem "ruby_llm"` to your Gemfile and set `OPENROUTER_API_KEY`, in your shell or the suite's `.env` (see [Environment](#environment)).
 
 ## Install
@@ -401,37 +401,37 @@ results:
   temp_dir: ./tmp            # temporary JSON when autosave is false
   display: browser           # none, tui or browser
 
-                             # This section requires OPENROUTER_API_KEY
-vendors:                     # the OpenRouter list; every entry takes a prompt
-  anthropic:
-    - model: claude-fable-5
-    - model: claude-opus-5
-    - model: claude-sonnet-5.5
-    - model: claude-haiku-5.5
-    	# a list expands into one contender per value
-      effort: [default, low, high] 
-  openai:
-    - model: gpt-4.1-mini
-    - model: gpt-4o-mini
-    - model: gpt-6.1-sol
-  google:
-    - model: gemini-2.5-flash
-    - model: gemini-4-argon
-  meta-llama:
-    - model: llama-3.3-70b-instruct
-  typesafe:
-    - model: jev-router      # Jev on OpenRouter, a chat model
-  moonshotai:
-    - model: kimi-k3
+                             # A section named after a provider states the key it needs.
+openrouter:                  # requires OPENROUTER_API_KEY; every entry takes a prompt
+  rate_limit: { burst: 1000, per_minute: 500 }
+  vendors:
+    anthropic:
+      rate_limit: { burst: 10, per_minute: 50 }
+      models:
+        - model: claude-opus-5                  # the vendor's limit only
+        - model: claude-fable-5                 # both limits
+          rate_limit: { burst: 5, per_minute: 20 }
+        - model: claude-haiku-5.5
+          effort: [default, low, high]          # a list expands into one contender per value
+    openai:                                     # no limit of its own
+      models:
+        - model: gpt-6.1-sol
+    typesafe:
+      models:
+        - model: jev-router                     # Jev on OpenRouter, a chat model
 
-direct:                      # a vendor's own API, one request type each
-  typesafe:                  # request type "typesafe": noul, choice, score
-    - model: jev-latest      # and this requires TYPESAFE_API_KEY
+typesafe:                    # requires TYPESAFE_API_KEY; request type "typesafe": noul, choice, score
+  models:
+    - jev-latest             # a bare name is the same as `- model: jev-latest`
 ```
 
-**`vendors:`** Each entry becomes `<vendor>/<model>`, the OpenRouter id. `effort` and `temperature` take one value or a list, and lists multiply: `effort: [low, high]` with `temperature: [0.0, 0.7]` runs four experiments for that model. Anything left out falls back to `defaults`. Flags (`-e`, `-t`, `--max-tokens`, `-p`) beat both.
+**Provider sections.** Each top-level key with `vendors:` or `models:` names a provider. An entry under `vendors:` becomes `<vendor>/<model>`, the OpenRouter id. An entry under `models:` becomes the provider's prefix and the name, such as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown provider or key is a configuration error naming the file. The old top-level `vendors:` and `direct:` are errors too.
 
-**`direct:`** Each key names a provider the gem knows (today only `typesafe`). Entries take the same `{model:, effort:, temperature:, max_tokens:}` format, expand the same way, and render as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown key is a configuration error naming the file and the known providers.
+**Settings.** `effort` and `temperature` take one value or a list, and lists multiply: `effort: [low, high]` with `temperature: [0.0, 0.7]` runs four experiments for that model. Anything left out falls back to `defaults`. Flags (`-e`, `-t`, `--max-tokens`, `-p`) beat both.
+
+**`rate_limit`.** It goes on a provider, a vendor or a model, and needs both numbers: the first `burst` calls go at once, then `per_minute`, evenly spaced. A call waits on every limit that matches it. Limits hold for one process across all `-j` and `-p`, and models given with `-m` obey them too. Time spent waiting is left out of `time`, `latency` and `p95`; `time` subtracts the wait averaged across the experiment's workers.
+
+**Retries.** RubyLLM's retries are off. Rate limits, overloads, server errors and dropped connections are retried up to 5 attempts in all, and a retry shuts that vendor for every thread, for as long as `Retry-After` says or for 1, 2, 4 then 8 seconds when it says nothing. A provider asking for more than 5 minutes is not retried; the case counts as an error.
 
 #### Weighted Score
 
@@ -458,10 +458,10 @@ You can weight `score`, `errors`, `time`, `cost` and your scorer's metrics. Anyt
 
 `request_types` is required. It identifies the kind of request the suite's adapter sends. The types belong to the providers and show in `llm-evals --help`; a suite only names them:
 
-| Type       | Provider                                 | Meaning                                              |
-| ---------- | ---------------------------------------- | ---------------------------------------------------- |
-| `prompt`   | OpenRouter (everything under `vendors:`) | a chat completion: system and user text in, text out |
-| `typesafe` | `direct: typesafe:`                      | typed questions: noul, choice, score                 |
+| Type       | Provider                                    | Meaning                                              |
+| ---------- | ------------------------------------------- | ---------------------------------------------------- |
+| `prompt`   | OpenRouter (everything under `openrouter:`) | a chat completion: system and user text in, text out |
+| `typesafe` | `typesafe:`                                 | typed questions: noul, choice, score                 |
 
 A contender runs only when its provider's type is in the suite's list. Otherwise it is **refused**:
 
@@ -582,8 +582,8 @@ LLM::Evals.configure { |c| c.tracker Weave }
 
 | Variable                      | Used for                                                  |
 | ----------------------------- | --------------------------------------------------------- |
-| `OPENROUTER_API_KEY`          | required for any `vendors:` model (OpenRouter)            |
-| `TYPESAFE_API_KEY`            | required for a `direct: typesafe:` model                  |
+| `OPENROUTER_API_KEY`          | required for any `openrouter:` model                      |
+| `TYPESAFE_API_KEY`            | required for a `typesafe:` model                          |
 | `BRAINTRUST_API_KEY`          | the Braintrust tracker; selects it when nothing else does |
 | `BRAINTRUST_PROJECT_ID`       | Braintrust project UUID; beats the lineup's `project`     |
 | `LOGFIRE_TOKEN`               | the Logfire tracker (a write token); selects it likewise  |
@@ -598,9 +598,9 @@ The suite loads files listed in `env_files`, without overriding variables alread
 
 A provider wraps an API. It declares the request types it supports, required keys, available models, and a `complete` method.
 
-- A provider that serves `vendors:` ids declares which ones with `prefix`.
-- A `direct?` provider is reached only through a `direct:` key matching its `name`.
-- Register it with `c.provider`. Providers are checked in reverse registration order for a `vendors:` ID. OpenRouter claims every ID, so it is always checked last.
+- A provider declares the ids it serves with `prefix`, and its section in the lineup carries its `name`.
+- A `direct?` provider is reached only through its own section.
+- Register it with `c.provider`. Providers are checked in reverse registration order for an ID outside a direct provider's section. OpenRouter claims every ID, so it is always checked last.
 
 ```ruby
 class Ollama < LLM::Evals::Providers::Base
@@ -657,7 +657,7 @@ LLM::Evals.configure { |c| c.provider Ollama.new }
 
 `model.effort`, `model.temperature` and `model.max_tokens` carry the contender's settings; nil means "send nothing". A transport failure should raise: the run counts it as an error, not as a wrong answer.
 
-`Providers::TypeSafe` is a direct provider (`direct: typesafe:`, request type `typesafe`). It ships with TypeSafe's model list, key and pricing, which is enough for `verify` and the cost column. Its `complete` is not implemented yet and raises "no typesafe consumer yet": the typed request shape will be defined by the first suite that declares `request_types: [typesafe]`.
+`Providers::TypeSafe` is a direct provider (`typesafe:`, request type `typesafe`). It ships with TypeSafe's model list, key and pricing, which is enough for `verify` and the cost column. Its `complete` is not implemented yet and raises "no typesafe consumer yet": the typed request shape will be defined by the first suite that declares `request_types: [typesafe]`.
 
 ## Public API
 
@@ -680,7 +680,7 @@ module LLM::Evals
     :value, :metrics, :outcomes, :diagnostics)
   RunResult  = Data.define(
     :experiment, :case, :reply, :score, :duration, :error)
-  # provider: nil for vendors:, a name for direct:.
+  # provider: nil, or a direct provider's name.
   Contender  = Data.define(
     :model, :effort, :temperature, :max_tokens, :provider)
 

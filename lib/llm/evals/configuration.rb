@@ -10,6 +10,9 @@ module LLM
       DEFAULT_CONFIG = ".llm-evals.config.yml"
 
       attr_writer :adapter, :scorer
+      # @return [Throttle] what every model call passes through; {Config#throttle} replaces it for a run
+      attr_accessor :throttle
+
       attr_reader :name, :root, :env_files, :cases_glob, :hooks, :providers, :trackers, :description
 
       def initialize
@@ -20,6 +23,7 @@ module LLM
         @config_path = DEFAULT_CONFIG
         @hooks = []
         @providers = Providers::Registry.default
+        @throttle = Throttle.new
         @trackers = Trackers::Registry.default
         @description = "Run a suite of cases against one or more models and score the replies."
         @project = nil
@@ -114,7 +118,7 @@ module LLM
       def discovery = Discovery.new(root: root, glob: cases_glob)
 
       # @return [Config] the lineup file
-      def lineup = Config.new(config, direct_providers: providers.direct_names)
+      def lineup = Config.new(config, providers:)
 
       # @return [Runtime]
       def runtime = Runtime.new(env_files: env_files, hooks: hooks, app_name: name)

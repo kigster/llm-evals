@@ -3,9 +3,9 @@
 RSpec.describe LLM::Evals::Providers::OpenRouter do
   subject(:provider) { described_class.new }
 
-  let(:model) { LLM::Evals::Model.new(id: "acme/m1", provider: provider, settings: { effort: "low", temperature: 0.0, max_tokens: 500 }) }
-  let(:chat) { instance_double(RubyLLM::Chat) }
   let(:reply) { "```json\n{\"a\": 1}\n```" }
+  let(:chat) { instance_double(RubyLLM::Chat) }
+  let(:model) { LLM::Evals::Model.new(id: "acme/m1", provider: provider, settings: { effort: "low", temperature: 0.0, max_tokens: 500 }) }
 
   before do
     require "ruby_llm"
@@ -15,6 +15,36 @@ RSpec.describe LLM::Evals::Providers::OpenRouter do
     end
     tokens = RubyLLM::Tokens.new(input: 1200, output: 80, reported_cost: 0.0003)
     allow(chat).to receive(:ask).and_return(instance_double(RubyLLM::Message, content: reply, tokens: tokens))
+  end
+
+  describe "#setup!" do
+    it "turns RubyLLM's retries off" do
+      described_class.new.setup!(app_name: "t")
+      expect(RubyLLM.config.max_retries).to eq(0)
+    end
+  end
+
+  describe "#retryable?" do
+    subject(:provider) { described_class.new }
+
+    before { LLM::Evals.optional!("ruby_llm", needed_for: "this spec") }
+
+    it("retries a rate limit") { expect(provider.retryable?(RubyLLM::RateLimitError.new("slow"))).to be(true) }
+    it("retries a server error") { expect(provider.retryable?(RubyLLM::ServerError.new("oops"))).to be(true) }
+    it("retries a dropped connection") { expect(provider.retryable?(Faraday::ConnectionFailed.new("gone"))).to be(true) }
+    it("does not retry an empty account") { expect(provider.retryable?(RubyLLM::PaymentRequiredError.new("pay"))).to be(false) }
+  end
+
+  describe "#retry_after" do
+    subject(:provider) { described_class.new }
+
+    before { LLM::Evals.optional!("ruby_llm", needed_for: "this spec") }
+
+    def limited(headers) = RubyLLM::RateLimitError.new("slow", response: Faraday::Env.from(response_headers: Faraday::Utils::Headers.new(headers), body: "slow"))
+
+    it("reads the header") { expect(provider.retry_after(limited("retry-after" => "7"))).to eq(7.0) }
+    it("is nil without it") { expect(provider.retry_after(limited({}))).to be_nil }
+    it("is nil for an error with no response") { expect(provider.retry_after(IOError.new)).to be_nil }
   end
 
   its(:name) { is_expected.to eq("openrouter") }

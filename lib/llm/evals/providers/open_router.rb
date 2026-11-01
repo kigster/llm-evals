@@ -32,7 +32,27 @@ module LLM
           RubyLLM.configure do |config|
             config.openrouter_api_key = ENV.fetch(KEY, nil)
             config.openrouter_app_name = app_name
+            config.max_retries = 0 # {Throttle} retries, in step with the limits
           end
+        end
+
+        # @param error [StandardError]
+        # @return [Boolean] rate limits, overloads and dropped connections
+        def retryable?(error)
+          case error
+          when RubyLLM::RateLimitError, RubyLLM::ServerError, RubyLLM::ServiceUnavailableError, RubyLLM::OverloadedError,
+               Faraday::TimeoutError, Faraday::ConnectionFailed then true
+          else false
+          end
+        end
+
+        # OpenRouter sends the header only when every upstream hinted at it.
+        #
+        # @param error [StandardError]
+        # @return [Numeric, nil]
+        def retry_after(error)
+          value = error.respond_to?(:response) && error.response&.response_headers&.[]("retry-after")
+          Float(value, exception: false) if value
         end
 
         # @param model [Model]

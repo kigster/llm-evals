@@ -9,6 +9,7 @@ PATH
       dry-cli-ui (~> 0.7)
       logger (~> 1.6)
       pastel (~> 0.8)
+      ruby-limiter (~> 2.3)
       ruby_llm (~> 2.1)
       tty-box (~> 0.7)
       tty-table (~> 0.12)
@@ -223,6 +224,7 @@ GEM
       lint_roller (~> 1.1)
       regexp_parser (>= 2.0)
       rubocop (~> 1.86, >= 1.86.2)
+    ruby-limiter (2.3.1)
     ruby-progressbar (1.13.0)
     ruby_llm (2.1.1)
       base64
@@ -389,6 +391,7 @@ CHECKSUMS
   rubocop-ast (1.50.0) sha256=b9ca88300da0803ee222ad20cdb30494c0a784eed06fdc35d254b06d662788db
   rubocop-rake (0.7.1) sha256=3797f2b6810c3e9df7376c26d5f44f3475eda59eb1adc38e6f62ecf027cbae4d
   rubocop-rspec (3.10.2) sha256=0b3e2ecc592cd10ecbf0095bb58d1e357905276e069643523cc19eb7495f65e2
+  ruby-limiter (2.3.1) sha256=f8731fc2ee0dffda1bfed3e199148a06774f734a357f2a397a39e7e5b6157545
   ruby-progressbar (1.13.0) sha256=80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33
   ruby_llm (2.1.1) sha256=2a59a6c100d1f7a5c5df7f3c392392c4430220ed936a34fdd34dd15954cc3573
   schematist (1.1.0) sha256=905d8f0286830926e77e0d631bee325ee741c4b99640bc99735593b40ba73e7b

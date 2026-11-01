@@ -69,6 +69,7 @@ module LLM
         @trackers = trackers.select(&:enabled?)
         @results = {}
         @lock = Mutex.new
+        @waited = 0.0
       end
 
       # @return [String] e.g. "anthropic/claude-haiku-5.5 effort=low t=0.0 [clear]"
@@ -81,7 +82,7 @@ module LLM
         adapter.prepare(dataset)
         trackers.each { it.start(self) }
         errors = run_locally(on_case)
-        summary = summarize(errors, nil, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
+        summary = summarize(errors, nil, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started - (@waited / workers))
         urls = trackers.map { it.finish(self, summary)&.fetch(:url, nil) }
         summary.with(permalink: urls.compact.first)
       end
@@ -94,7 +95,8 @@ module LLM
       # @return [RunResult]
       def evaluate(kase)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        reply = adapter.call(kase, model: model)
+        reply, waited = Throttle.measure { adapter.call(kase, model: model) }
+        @lock.synchronize { @waited += waited }
         raise Error, "#{adapter.class}#call returned #{reply.class}, not an LLM::Evals::Reply" unless reply.is_a?(Reply)
 
         score = reply.error? ? Score.failed(scorer.metrics, reply.error) : scorer.call(kase, reply, context: adapter.context(kase))
@@ -102,10 +104,12 @@ module LLM
           case: kase,
           reply: reply,
           score: score,
-          duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
+          duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - started - waited)
       end
 
       private
+
+      def workers = [parallelism, cases.size].min
 
       # Remembers a result and tells the trackers, under one lock, so a
       # tracker sees results one at a time and in the order they are kept.
@@ -123,7 +127,7 @@ module LLM
         cases.each { queue << it }
         queue.close
         errors = Queue.new
-        Array.new([parallelism, cases.size].min) do
+        Array.new(workers) do
           Thread.new do
             while (kase = queue.pop)
               result = begin

@@ -29,21 +29,31 @@ module LLM
     #     weights:
     #       score: 0.6
     #       cost: -0.4
-    #   vendors:                   # the OpenRouter list; every entry takes a prompt
-    #     anthropic:
-    #       - model: claude-haiku-5.5
-    #         effort: [default, low]  # a list expands into one contender per value
-    #   direct:                      # a vendor's own API, one request type each
-    #     typesafe:
-    #       - model: jev-latest
+    #   openrouter:                  # a provider's name; this one needs OPENROUTER_API_KEY
+    #     rate_limit: { burst: 1000, per_minute: 500 }
+    #     vendors:
+    #       anthropic:
+    #         rate_limit: { burst: 10, per_minute: 50 }
+    #         models:
+    #           - model: claude-haiku-5.5
+    #             rate_limit: { burst: 5, per_minute: 20 }
+    #             effort: [default, low]  # a list expands into one contender per value
+    #   typesafe:                    # a provider with no vendors; this one needs TYPESAFE_API_KEY
+    #     models:
+    #       - jev-1.14.0             # a bare name is the same as `- model: jev-1.14.0`
     #
-    # Each entry becomes "<vendor>/<model>", the id a provider recognises. A
-    # key under `direct:` names a provider; its entries carry that provider.
+    # An entry under `vendors:` becomes "<vendor>/<model>", the id a provider
+    # recognises; one under `models:` becomes the provider's prefix and the name.
+    # A call waits on every `rate_limit` that matches it; see {Throttle}.
     class Config
       # The request types a suite may declare. `prompt` is a chat completion:
       # system and user text in, text out. `typesafe` is TypeSafe's typed
       # question API, whose request shape the first such suite will define.
       REQUEST_TYPES = %w[prompt typesafe].freeze
+
+      SECTION_KEYS = %w[rate_limit vendors models].freeze
+      VENDOR_KEYS = %w[rate_limit models].freeze
+      ENTRY_KEYS = %w[model effort temperature max_tokens rate_limit].freeze
 
       BUILTIN = {
         "effort" => "default", "temperature" => 0.2, "max_tokens" => 4096, "parallelism" => 4
@@ -52,13 +62,13 @@ module LLM
       Results = Data.define(:autosave, :destination, :temp_dir, :display_mode)
       RESULT_DISPLAYS = %w[none tui browser].freeze
 
-      attr_reader :path, :direct_providers
+      attr_reader :path, :providers
 
       # @param path [String] read when it exists; an absent file is an empty lineup
-      # @param direct_providers [Array<String>] the provider names `direct:` may use
-      def initialize(path, direct_providers: Providers::Registry.default.direct_names)
+      # @param providers [Providers::Registry] whose names the file's sections may use
+      def initialize(path, providers: Providers::Registry.default)
         @path = path
-        @direct_providers = direct_providers
+        @providers = providers
         @data = File.exist?(path) ? (YAML.safe_load_file(path) || {}) : {}
       end
 
@@ -152,24 +162,32 @@ module LLM
         weights.transform_keys(&:to_s)
       end
 
-      # Every vendor/model/effort/temperature combination the file lists,
-      # `vendors:` first, then `direct:`.
+      # Every vendor/model/effort/temperature combination the file lists, in
+      # the file's order.
       #
       # @param overrides [Hash{String => Object}] values from the command line; nil entries are ignored
       # @return [Array<Contender>]
-      # @raise [Error] on a key under `direct:` that names no provider
+      # @raise [Error] on a section or entry the file format does not have
       def contenders(overrides = {})
-        vendors = (@data["vendors"] || {}).flat_map do |vendor, entries|
-          Array(entries).flat_map { expand("#{vendor}/#{it.fetch("model")}", it, overrides) }
-        end
-        direct = (@data["direct"] || {}).flat_map do |name, entries|
-          unless direct_providers.include?(name.to_s)
-            raise Error, "#{path}: unknown provider #{name.inspect} under direct:; known: #{direct_providers.join(", ")}"
+        sections.flat_map do |provider, section|
+          listed(provider, section).flat_map do |_scope, id, entry|
+            expand(id, entry, overrides, provider: provider.direct? ? provider.name.to_sym : nil)
           end
-
-          Array(entries).flat_map { expand("#{name}/#{it.fetch("model")}", it, overrides, provider: name.to_sym) }
         end
-        vendors + direct
+      end
+
+      # The file's `rate_limit`s, ready for calls.
+      #
+      # @return [Throttle]
+      # @raise [Error] on a limit that is missing a number or out of range
+      def throttle
+        limits = {}
+        sections.each do |provider, section|
+          limit(limits, provider.name, section)
+          vendors_of(section).each { |vendor, listing| limit(limits, "#{provider.name}/#{vendor}", listing) }
+          listed(provider, section).each { |scope, _id, entry| limit(limits, scope, entry) }
+        end
+        Throttle.new(limits)
       end
 
       # The models given on the command line, at the file's default settings.
@@ -182,6 +200,68 @@ module LLM
       end
 
       private
+
+      # @return [Array<Array(Providers::Base, Hash)>] the file's provider sections
+      # @raise [Error] on the old top-level keys, or a section naming no provider
+      def sections
+        retired = %w[vendors direct] & @data.keys
+        raise Error, "#{path}: #{retired.join(" and ")} no longer exist; list models under a provider, as `openrouter: { vendors: ... }` or `typesafe: { models: ... }`" if retired.any?
+
+        names = providers.map(&:name)
+        @data.filter_map do |name, section|
+          next unless section.is_a?(Hash) && section.keys.intersect?(%w[vendors models])
+          raise Error, "#{path}: unknown provider #{name.inspect}; known: #{names.join(", ")}" unless names.include?(name.to_s)
+
+          known!(name, section, SECTION_KEYS)
+          [providers.find { it.name == name.to_s }, section]
+        end
+      end
+
+      def vendors_of(section)
+        vendors = section["vendors"] || {}
+        raise Error, "#{path}: vendors must be a mapping of vendor to models" unless vendors.is_a?(Hash)
+
+        vendors.each do |vendor, listing|
+          raise Error, "#{path}: vendor #{vendor} needs a models: list" unless listing.is_a?(Hash)
+
+          known!(vendor, listing, VENDOR_KEYS)
+        end
+      end
+
+      # @return [Array<Array(String, String, Hash)>] each entry's throttle scope, model id and settings
+      def listed(provider, section)
+        grouped = vendors_of(section).flat_map do |vendor, listing|
+          entries(vendor, listing).map { ["#{provider.name}/#{vendor}/#{it["model"]}", "#{provider.prefix}#{vendor}/#{it["model"]}", it] }
+        end
+        grouped + entries(provider.name, section).map { ["#{provider.name}/#{it["model"]}", "#{provider.prefix}#{it["model"]}", it] }
+      end
+
+      def entries(owner, listing)
+        Array(listing["models"]).map do |entry|
+          entry = { "model" => entry } if entry.is_a?(String)
+          raise Error, "#{path}: every entry under #{owner} needs a model" unless entry.is_a?(Hash) && entry["model"]
+
+          known!(entry["model"], entry, ENTRY_KEYS)
+          entry
+        end
+      end
+
+      def known!(owner, mapping, keys)
+        unknown = mapping.keys - keys
+        raise Error, "#{path}: unknown keys under #{owner}: #{unknown.join(", ")}; known: #{keys.join(", ")}" if unknown.any?
+      end
+
+      def limit(limits, scope, owner)
+        given = owner["rate_limit"]
+        return if given.nil?
+
+        burst, per_minute = given.values_at("burst", "per_minute") if given.is_a?(Hash)
+        unless [burst, per_minute].all? { it.is_a?(Integer) && it.positive? } && given.size == 2
+          raise Error, "#{path}: rate_limit of #{scope} needs burst and per_minute, whole numbers above 0"
+        end
+
+        limits[scope] = Throttle::Limit.new(burst:, per_minute:)
+      end
 
       def expand(model, entry, overrides, provider: nil)
         settings = defaults.merge(entry).merge(overrides.compact)

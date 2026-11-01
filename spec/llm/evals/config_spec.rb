@@ -14,22 +14,25 @@ RSpec.describe LLM::Evals::Config do
         project: p1
         defaults:
           temperature: 0.5
-        vendors:
-          acme:
-            - model: big
-              effort: [low, high]
-              temperature: [0.0, 1.0]
-            - model: small
-          typesafe:
-            - model: jev-router
-        direct:
-          typesafe:
+        openrouter:
+          vendors:
+            acme:
+              models:
+                - model: big
+                  effort: [low, high]
+                  temperature: [0.0, 1.0]
+                - model: small
+            typesafe:
+              models:
+                - model: jev-router
+        typesafe:
+          models:
             - model: jev-latest
               temperature: [0.5, 0.9]
       YAML
     end
 
-    it "lists vendors first, then direct entries carrying their provider" do
+    it "keeps the file's order, with direct entries carrying their provider" do
       expect(config.contenders.map { [it.model, it.provider, it.temperature] }.last(3)).to eq(
         [["typesafe/jev-router", nil, 0.5], ["typesafe/jev-latest", :typesafe, 0.5], ["typesafe/jev-latest", :typesafe, 0.9]]
       )
@@ -40,9 +43,9 @@ RSpec.describe LLM::Evals::Config do
       expect(config.contenders[-3]).not_to be_direct
     end
 
-    it "refuses an unknown provider under direct, naming the file" do
-      File.write(path, "direct:\n  ollama:\n    - model: llama3\n")
-      expect { config.contenders }.to raise_error(LLM::Evals::Error, /#{Regexp.escape(path)}: unknown provider "ollama" under direct:; known: typesafe/)
+    it "refuses an unknown provider, naming the file" do
+      File.write(path, "ollama:\n  models:\n    - llama3\n")
+      expect { config.contenders }.to raise_error(LLM::Evals::Error, /#{Regexp.escape(path)}: unknown provider "ollama"; known: /)
     end
 
     its(:project) { is_expected.to eq("p1") }
@@ -61,6 +64,61 @@ RSpec.describe LLM::Evals::Config do
 
     it "builds contenders for models given directly" do
       expect(config.contenders_for(["x/y"], "max_tokens" => "100").first).to have_attributes(model: "x/y", max_tokens: 100)
+    end
+  end
+
+  context "with the retired keys" do
+    before { File.write(path, "vendors:\n  acme:\n    - model: big\n") }
+
+    it { expect { config.contenders }.to raise_error(LLM::Evals::Error, /vendors no longer exist/) }
+  end
+
+  context "with a bare model name" do
+    before { File.write(path, "typesafe:\n  models:\n    - jev-1.14.0\n") }
+
+    it { expect(config.contenders.first).to have_attributes(model: "typesafe/jev-1.14.0", provider: :typesafe) }
+  end
+
+  context "with a misspelled key on an entry" do
+    before { File.write(path, "typesafe:\n  models:\n    - model: jev\n      ratelimit: 1\n") }
+
+    it { expect { config.contenders }.to raise_error(LLM::Evals::Error, /unknown keys under jev: ratelimit/) }
+  end
+
+  describe "#throttle" do
+    before do
+      File.write(path, <<~YAML)
+        openrouter:
+          rate_limit: { burst: 1000, per_minute: 500 }
+          vendors:
+            anthropic:
+              rate_limit: { burst: 10, per_minute: 50 }
+              models:
+                - model: claude-opus-5
+                - model: claude-fable-5
+                  rate_limit: { burst: 5, per_minute: 20 }
+            openai:
+              models:
+                - model: gpt-6.1-sol
+        typesafe:
+          models:
+            - jev-1.14.0
+      YAML
+      allow(LLM::Evals::Throttle).to receive(:new).and_call_original
+    end
+
+    it "keys each limit by provider, vendor and model" do
+      config.throttle
+      expect(LLM::Evals::Throttle).to have_received(:new).with(
+        { "openrouter"                          => an_instance_of(LLM::Evals::Throttle::Limit),
+          "openrouter/anthropic"                => an_instance_of(LLM::Evals::Throttle::Limit),
+          "openrouter/anthropic/claude-fable-5" => an_instance_of(LLM::Evals::Throttle::Limit) }
+      )
+    end
+
+    it "refuses a limit without both numbers" do
+      File.write(path, "openrouter:\n  rate_limit: { burst: 10 }\n  vendors: {}\n")
+      expect { config.throttle }.to raise_error(LLM::Evals::Error, /rate_limit of openrouter needs burst and per_minute/)
     end
   end
 

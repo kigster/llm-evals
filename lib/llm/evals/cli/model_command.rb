@@ -82,7 +82,7 @@ module LLM
         private
 
         # @return [Config] the lineup: --config, else the suite's
-        def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config])) : configuration.lineup
+        def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config]), providers:) : configuration.lineup
 
         # @return [Providers::Registry]
         def providers = configuration.providers
@@ -179,9 +179,10 @@ module LLM
         # @return [Array<Contender>]
         # @raise [Error] when neither names any model
         def contenders(config, models, options)
+          configuration.throttle = config.throttle
           models = models.flat_map { it.split(",") }
           found = models.empty? ? config.contenders(overrides(options)) : config.contenders_for(models, overrides(options))
-          raise Error, "no models: list some under vendors in #{config.path}, or pass -m" if found.empty?
+          raise Error, "no models: list some under a provider in #{config.path}, or pass -m" if found.empty?
 
           admit(found, config)
         end
