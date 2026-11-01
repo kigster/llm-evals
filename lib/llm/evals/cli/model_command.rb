@@ -17,66 +17,7 @@ module LLM
 
         def self.inherited(subclass)
           super
-          subclass.extend(Dry::CLI::UI::Flags)
-          subclass.flags(:dry_run, :output)
-          subclass.option :models,
-            type:    :array,
-            aliases: ["-m"],
-            default: [],
-            desc:    "Model ids, comma-separated, instead of the config file's vendors"
-          subclass.option :dataset,
-            type:    :array,
-            aliases: ["-d"],
-            default: [],
-            desc:    "Datasets, comma-separated; every dataset when omitted. Each model runs on each"
-          subclass.option :config, aliases: ["-C"], desc: "The lineup file (default: the suite's .llm-evals.config.yml)"
-          subclass.option :effort, aliases: ["-e"], desc: "Reasoning effort: default, or one the provider accepts (overrides the config file)"
-          subclass.option :temperature, aliases: ["-t"], desc: "Sampling temperature, or 'default' to send none (overrides the config file)"
-          subclass.option :max_tokens, desc: "Output token cap, reasoning included (overrides the config file)"
-          subclass.option :case,
-            type:    :array,
-            aliases: ["-c"],
-            default: [],
-            desc:    "Only these cases, by id prefix: -c clear or -c clear/003,vague/001"
-          subclass.option :parallelism, aliases: ["-p"], desc: "Cases in flight at once, per model (default: the config's defaults.parallelism)"
-          subclass.option :concurrency,
-            aliases: ["-j"],
-            desc:    "Experiments running at once; 0 runs them all together (default: the number of CPUs)"
-          subclass.option :project,
-            desc: "Braintrust project name; default is the BRAINTRUST_PROJECT_ID project, else the config file's project"
-          subclass.option :open,
-            type:    :boolean,
-            default: true,
-            desc:    "Open the best experiment in the browser when done (no effect with --local)"
-          subclass.option :scores,
-            type:    :boolean,
-            default: false,
-            desc:    "Also print every experiment by score, with its cost and its tracker's link"
-          subclass.option :totals,
-            values:  %w[overall variant both],
-            default: "overall",
-            desc:    "Group TUI totals by overall results, case variant or both"
-          subclass.option :format,
-            values: %w[tui html json],
-            desc:   "Override the configured display: tui, html or json"
-          subclass.option :display,
-            values: %w[none tui browser],
-            desc:   "Override results.display from the lineup"
-          subclass.option :autosave,
-            type:    :boolean,
-            default: nil,
-            desc:    "Save a JSON snapshot regardless of results.autosave"
-          subclass.option :destination,
-            desc: "Override results.destination"
-          subclass.option :temp_dir,
-            desc: "Override results.temp_dir"
-          subclass.option :local,
-            type:    :boolean,
-            default: false,
-            desc:    "No remote tracker: results go to log/ only (still calls the models)"
-          subclass.option :tracker,
-            desc: "The remote tracker: braintrust, logfire, none, or one the suite registers " \
-                  "(default: the config's tracker:, else the one whose key is in the environment)"
+          ModelOptions.apply(subclass)
         end
 
         private
