@@ -24,7 +24,7 @@ gem_file := 'pkg/' + gem_name + '-' + version + '.gem'
 gem_url  := 'https://rubygems.org/gems/' + gem_name
 
 # The executable, as seen from inside either example suite's folder.
-exe      := '../../../exe/llm-evals'
+exe      := '../../../exe/evals'
 
 [no-exit-message]
 recipes:

@@ -6,13 +6,14 @@ module LLM
     # Paths are relative to `root`, the directory the eval helper lives in.
     class Configuration
       DEFAULT_GLOB = "datasets/*/cases/**/input.txt"
+      DEFAULT_NAME = "llm-evals"
       DEFAULT_CONFIG = ".llm-evals.config.yml"
 
       attr_writer :adapter, :scorer
       attr_reader :name, :root, :env_files, :cases_glob, :hooks, :providers, :trackers, :description
 
       def initialize
-        @name = "llm-evals"
+        @name = DEFAULT_NAME
         @root = Dir.pwd
         @env_files = []
         @cases_glob = DEFAULT_GLOB

@@ -2,7 +2,7 @@
 
 ## 0.4.0 (2026-10-30)
 
-Renamed from `agent-evals`: gem `llm-evals`, namespace `LLM::Evals`, executables `llm-evals` and `evals`, lineup file `.llm-evals.config.yml`. The old names are gone. The version continues from `agent-evals` 0.3.1.
+Renamed from `agent-evals`: gem `llm-evals`, namespace `LLM::Evals`, executable `evals` (with `llm-evals` as an identical spare, for a system where `evals` is taken; shell completion targets `evals`), lineup file `.llm-evals.config.yml`. The old names are gone. The version continues from `agent-evals` 0.3.1.
 
 - Add `--format html` to `run` and `compare` for a standalone report with global and dataset rankings, coverage, sortable tables, case inputs, expected answers, scores and diagnostics. TUI remains the default; HTML writes to `log/` unless `-o` names a path. Provider and model names are color-coded, with effort and temperature in separate columns.
 - Add `--totals overall|variant|both` to choose the TUI totals view; overall results are the default and per-variant tables remain available.

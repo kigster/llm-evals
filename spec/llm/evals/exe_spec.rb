@@ -3,8 +3,8 @@
 # The executable, as a user runs it: a fresh process in the toy suite's
 # directory, with no --helper, finding evals/eval_helper.rb on its own. These
 # do not count toward coverage; the Launcher specs do that in-process.
-RSpec.describe "exe/llm-evals" do
-  let(:exe) { File.expand_path("../../../exe/llm-evals", __dir__) }
+RSpec.describe "exe/evals" do
+  let(:exe) { File.expand_path("../../../exe/evals", __dir__) }
 
   def run_exe(*, from: TOY_SUITE, env: {})
     Open3.capture3({ "BUNDLE_GEMFILE" => File.expand_path("../../../Gemfile", __dir__), "NO_COLOR" => "1", **env },
@@ -15,8 +15,8 @@ RSpec.describe "exe/llm-evals" do
       chdir: from)
   end
 
-  it "ships evals as a byte-identical regular file" do
-    twin = File.expand_path("../../../exe/evals", __dir__)
+  it "ships llm-evals as a byte-identical regular file" do
+    twin = File.expand_path("../../../exe/llm-evals", __dir__)
     expect(File.symlink?(twin)).to be(false)
     expect(File.read(twin)).to eq(File.read(exe))
     expect(File.executable?(twin)).to be(true)

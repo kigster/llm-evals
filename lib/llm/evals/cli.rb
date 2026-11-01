@@ -8,11 +8,13 @@ module LLM
     module CLI
       extend Dry::CLI::Registry
 
-      PROGRAM = "llm-evals"
+      # What users type, so what the help and shell completion are written for.
+      # exe/llm-evals exists only for a system where `evals` is taken.
+      PROGRAM = "evals"
 
       Dry::CLI::Help.configure do
         configuration = LLM::Evals.configuration
-        title configuration.name == PROGRAM ? PROGRAM : "#{PROGRAM} (#{configuration.name})"
+        title configuration.name == Configuration::DEFAULT_NAME ? PROGRAM : "#{PROGRAM} (#{configuration.name})"
         types = configuration.providers.uniq(&:request_type).map { "#{it.request_type} (#{it.request_type_description})" }
         description "#{configuration.description} Request types: #{types.join("; ")}."
 

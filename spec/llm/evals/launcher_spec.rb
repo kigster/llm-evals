@@ -19,7 +19,7 @@ RSpec.describe LLM::Evals::Launcher do
   context "with no arguments" do
     let(:argv) { [] }
 
-    it("prints help, titled after the suite") { expect(run_cli).to include("compare", "llm-evals (toy)", "The toy suite") }
+    it("prints help, titled after the suite") { expect(run_cli).to include("compare", "evals (toy)", "The toy suite") }
     it("lists the request types the providers own") { expect(run_cli.gsub(/\s+/, " ")).to include("typesafe (typed questions: noul, choice, score)") }
     it("exits 0") { run_cli && expect(kernel).to(have_received(:exit).with(0)) }
   end
@@ -33,7 +33,7 @@ RSpec.describe LLM::Evals::Launcher do
   context "with completion" do
     let(:argv) { %w[completion zsh] }
 
-    it { expect(run_cli).to include("#compdef llm-evals") }
+    it { expect(run_cli).to include("#compdef evals") }
   end
 
   context "with cases" do
