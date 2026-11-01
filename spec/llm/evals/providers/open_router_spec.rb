@@ -70,20 +70,20 @@ RSpec.describe LLM::Evals::Providers::OpenRouter do
   end
 
   describe "#complete" do
-    subject(:completion) { model.complete(system: "sys", user: "hello") }
+    subject(:provider_response) { model.complete(system: "sys", user: "hello") }
 
     its(:text) { is_expected.to eq(reply) }
-    it { expect(completion.usage).to eq(LLM::Evals::Stats::Usage.new(input_tokens: 1200, output_tokens: 80, cost_usd: 0.0003)) }
+    it { expect(provider_response.usage).to eq(LLM::Evals::Stats::Usage.new(input_tokens: 1200, output_tokens: 80, cost_usd: 0.0003)) }
 
     it "sends the prompts through OpenRouter" do
-      completion
+      provider_response
       expect(RubyLLM).to have_received(:chat).with(model: "acme/m1", provider: :openrouter, assume_model_exists: true)
       expect(chat).to have_received(:with_instructions).with("sys")
       expect(chat).to have_received(:ask).with("hello")
     end
 
     it "sends the settings" do
-      completion
+      provider_response
       expect(chat).to have_received(:with_thinking).with(effort: :low)
       expect(chat).to have_received(:with_temperature).with(0.0)
       expect(chat).to have_received(:with_max_output_tokens).with(500)

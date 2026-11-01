@@ -2,7 +2,7 @@
 
 module LLM
   module Evals
-    # What comes back: a provider's completion, an adapter's reply, a score, and what a run held back.
+    # What comes back: a provider's response, an adapter's reply, a score, and what a run held back.
     module Results
     end
   end

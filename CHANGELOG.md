@@ -4,15 +4,15 @@
 
 - Breaking: move every class out of the top of `LLM::Evals` into a module of its own. There are no aliases; rename as follows:
 
-  | Module                 | Constants                                                             |
-  | ---------------------- | --------------------------------------------------------------------- |
-  | `LLM::Evals::Runtime`  | `Configuration`, `Helper`; `Runtime` is now `Runtime::Environment`    |
-  | `LLM::Evals::Datasets` | `Case`, `Discovery`                                                   |
-  | `LLM::Evals::Scoring`  | `Scorer`, `Metric`, `WeightedScore`, `SchemaValidator`                |
-  | `LLM::Evals::Models`   | `Model`, `Contender`, `Throttle`                                      |
-  | `LLM::Evals::Actions`  | `Experiment`, `Adapter`, `Verify`, `ErrorBudget`                      |
-  | `LLM::Evals::Results`  | `Reply`, `Score`, `Completion`, `RunResult`, `RunOutcome`, `Warnings` |
-  | `LLM::Evals::Stats`    | `CallStats`, `Usage` (`Stats` itself stays)                           |
+  | Module                 | Constants                                                                                      |
+  | ---------------------- | ---------------------------------------------------------------------------------------------- |
+  | `LLM::Evals::Runtime`  | `Configuration`, `Helper`; `Runtime` is now `Runtime::Environment`                             |
+  | `LLM::Evals::Datasets` | `Case`, `Discovery`                                                                            |
+  | `LLM::Evals::Scoring`  | `Scorer`, `Metric`, `WeightedScore`, `SchemaValidator`                                         |
+  | `LLM::Evals::Models`   | `Model`, `Contender`, `Throttle`                                                               |
+  | `LLM::Evals::Actions`  | `Experiment`, `Adapter`, `Verify`, `ErrorBudget`                                               |
+  | `LLM::Evals::Results`  | `Reply`, `Score`, `ProviderResponse` (was `Completion`), `RunResult`, `RunOutcome`, `Warnings` |
+  | `LLM::Evals::Stats`    | `CallStats`, `Usage` (`Stats` itself stays)                                                    |
 
   `LLM::Evals::Tracker` is now `LLM::Evals::Trackers::Base`, and `LLM::Evals::ConfigUpgrade` is `LLM::Evals::Config::Upgrade`. `LLM::Evals.configure` and `.configuration` are unchanged.
 

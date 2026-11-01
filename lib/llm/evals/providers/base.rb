@@ -70,15 +70,15 @@ module LLM
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean]
-        # @return [Results::Completion]
+        # @return [Results::ProviderResponse]
         def complete(model, system:, user:, json: true)
-          raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Results::Completion"
+          raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Results::ProviderResponse"
         end
 
         # @param model [Models::Model]
         # @param state [Object]
         # @param questions [Hash{String => Hash}]
-        # @return [Results::Completion]
+        # @return [Results::ProviderResponse]
         def ask(model, state:, questions:)
           raise NotImplementedError, "#{self.class} does not answer typed questions"
         end

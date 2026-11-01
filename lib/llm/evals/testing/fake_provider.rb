@@ -43,10 +43,10 @@ module LLM
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean]
-        # @return [Results::Completion]
+        # @return [Results::ProviderResponse]
         def complete(model, system:, user:, json: true)
           @lock.synchronize { @calls << { model: model.id, system: system, user: user, json: json } }
-          Results::Completion.new(text: @answers ? @answers.call(user) : answer(user), usage: USAGE)
+          Results::ProviderResponse.new(text: @answers ? @answers.call(user) : answer(user), usage: USAGE)
         end
 
         private

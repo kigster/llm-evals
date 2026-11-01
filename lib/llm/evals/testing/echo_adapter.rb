@@ -15,13 +15,13 @@ module LLM
         # @param model [Models::Model]
         # @return [Results::Reply]
         def call(kase, model:)
-          completion = model.complete(system: SYSTEM, user: kase.input, json: true)
-          output = JSON.parse(completion.text.strip.gsub(FENCE, ""))
-          return Results::Reply.new(error: "reply is not a JSON object", raw: completion.text, usage: completion.usage) unless output.is_a?(Hash)
+          provider_response = model.complete(system: SYSTEM, user: kase.input, json: true)
+          output = JSON.parse(provider_response.text.strip.gsub(FENCE, ""))
+          return Results::Reply.new(error: "reply is not a JSON object", raw: provider_response.text, usage: provider_response.usage) unless output.is_a?(Hash)
 
-          Results::Reply.new(output: output, raw: completion.text, usage: completion.usage)
+          Results::Reply.new(output: output, raw: provider_response.text, usage: provider_response.usage)
         rescue JSON::ParserError
-          Results::Reply.new(error: "reply is not JSON", raw: completion.text, usage: completion.usage)
+          Results::Reply.new(error: "reply is not JSON", raw: provider_response.text, usage: provider_response.usage)
         end
       end
     end

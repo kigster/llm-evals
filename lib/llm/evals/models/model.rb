@@ -42,7 +42,7 @@ module LLM
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean] ask the provider for a JSON object reply where it supports that
-        # @return [Results::Completion]
+        # @return [Results::ProviderResponse]
         def complete(user:, system: nil, json: true)
           @throttle.call(self) { provider.complete(self, system: system, user: user, json: json) }
         end
@@ -51,7 +51,7 @@ module LLM
         #
         # @param state [Object]
         # @param questions [Hash{String => Hash}]
-        # @return [Results::Completion]
+        # @return [Results::ProviderResponse]
         def ask(state:, questions:)
           @throttle.call(self) { provider.ask(self, state: state, questions: questions) }
         end

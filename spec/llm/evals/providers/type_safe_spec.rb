@@ -20,10 +20,10 @@ RSpec.describe LLM::Evals::Providers::TypeSafe do
       answer = reply(Net::HTTPOK, "200", '{"answers":{"paid":{"type":"noul","noul":0.9}},"usage":{"input_tokens":1000000,"output_tokens":3}}')
       http = instance_double(Net::HTTP, request: answer)
       allow(Net::HTTP).to receive(:start).and_yield(http)
-      completion = model.ask(state: "text", questions: questions)
+      provider_response = model.ask(state: "text", questions: questions)
       expect(http).to have_received(:request).with(have_attributes(body: JSON.generate({ model: "jev-1.14.0", state: "text", questions: questions })))
-      expect(completion.raw.dig("paid", "noul")).to eq(0.9)
-      expect(completion.usage.cost_usd).to be_within(1e-9).of(0.042)
+      expect(provider_response.raw.dig("paid", "noul")).to eq(0.9)
+      expect(provider_response.usage.cost_usd).to be_within(1e-9).of(0.042)
     end
 
     it "raises the status and Retry-After of a refusal" do

@@ -13,7 +13,7 @@ RSpec.describe LLM::Evals::Providers::Base do
 
   it "requires complete to be overridden" do
     model = LLM::Evals::Models::Model.new(id: "x", provider: provider)
-    expect { model.complete(user: "x") }.to raise_error(NotImplementedError, /Completion/)
+    expect { model.complete(user: "x") }.to raise_error(NotImplementedError, /ProviderResponse/)
   end
 
   it "answers no typed questions by default" do

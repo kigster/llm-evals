@@ -59,7 +59,7 @@ module LLM
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean] asks for `response_format: json_object`
-        # @return [Results::Completion] text, plus the tokens and the cost OpenRouter billed
+        # @return [Results::ProviderResponse] text, plus the tokens and the cost OpenRouter billed
         def complete(model, system:, user:, json: true)
           LLM::Evals.optional!("ruby_llm", needed_for: "calling models through OpenRouter")
           chat = RubyLLM.chat(model: model.name, provider: :openrouter, assume_model_exists: true)
@@ -70,7 +70,7 @@ module LLM
           chat.with_provider_options(response_format: { type: "json_object" }) if json
 
           message = chat.ask(user)
-          Results::Completion.new(
+          Results::ProviderResponse.new(
             text:  message.content.to_s,
             usage: Stats::Usage.new(input_tokens: message.tokens.input.to_i,
               output_tokens: message.tokens.output.to_i,

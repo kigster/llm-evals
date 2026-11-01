@@ -66,14 +66,14 @@ module LLM
         # @param model [Models::Model]
         # @param state [Object] what the questions are about
         # @param questions [Hash{String => Hash}] by name: type, instructions, criteria
-        # @return [Results::Completion] `raw` holds the answers by name; `text` is them as JSON
+        # @return [Results::ProviderResponse] `raw` holds the answers by name; `text` is them as JSON
         # @raise [HTTPError] on any status but 2xx
         # @raise [Error] on a missing key, or a 2xx that is not a usable answer
         def ask(model, state:, questions:)
           body = client.ask({ model: model.name, state: state, questions: questions })
           answers = body["answers"]
           tokens = body.fetch("usage", {})
-          Results::Completion.new(text: JSON.generate(answers),
+          Results::ProviderResponse.new(text: JSON.generate(answers),
             usage: usage(input_tokens: tokens["input_tokens"].to_i, output_tokens: tokens["output_tokens"].to_i),
             raw: answers)
         end

@@ -17,7 +17,7 @@ RSpec.describe "value objects" do
     end
   end
 
-  describe LLM::Evals::Results::Completion do
+  describe LLM::Evals::Results::ProviderResponse do
     it "defaults the usage and stringifies the text" do
       expect(described_class.new(text: 42)).to have_attributes(text: "42", usage: LLM::Evals::Stats::Usage.zero, raw: nil)
     end

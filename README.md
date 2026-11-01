@@ -262,15 +262,15 @@ class MyAdapter < LLM::Evals::Actions::Adapter
   def prepare(dataset) = @schema = MyGem.schema_for(dataset)
 
   def call(kase, model:)
-    completion = model.complete(
+    provider_response = model.complete(
       system: MyGem.system_prompt(@schema), user: kase.input, json: true)
     
     # The production parser, so scores reflect production.
-    output = MyGem.parse(completion.text)
-    LLM::Evals::Results::Reply.new(output: output, raw: completion.text, usage: completion.usage)
+    output = MyGem.parse(provider_response.text)
+    LLM::Evals::Results::Reply.new(output: output, raw: provider_response.text, usage: provider_response.usage)
   rescue MyGem::NotJSON => e
     # The model's failure: scored 0.
-    LLM::Evals::Results::Reply.new(error: e.message, raw: completion&.text)
+    LLM::Evals::Results::Reply.new(error: e.message, raw: provider_response&.text)
   end
 
   # What the scorer needs beyond the case.
@@ -653,7 +653,7 @@ class Ollama < LLM::Evals::Providers::Base
       Net::HTTP.post(URI("#{HOST}/api/generate"), JSON.generate(body)).body
     )
 
-    LLM::Evals::Results::Completion.new(
+    LLM::Evals::Results::ProviderResponse.new(
       text: response.fetch("response"),
       usage: {
         input_tokens: response["prompt_eval_count"],
@@ -680,7 +680,7 @@ module LLM::Evals
     :id, :dataset, :variant, :input, :expected, :path, :metadata)
   Usage      = Data.define(
     :input_tokens, :output_tokens, :cost_usd)
-  Completion = Data.define(
+  ProviderResponse = Data.define(
     :text, :usage, :raw)
   # error: the model failed, scored 0. A raise: transport failure.
   Reply      = Data.define(
@@ -699,7 +699,7 @@ module LLM::Evals
 
   class Model
     attr_reader :id, :provider, :settings
-    def complete(system: nil, user:, json: true) = Completion
+    def complete(system: nil, user:, json: true) = ProviderResponse
   end
 
   class Adapter
