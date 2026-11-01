@@ -67,7 +67,8 @@ module LLM
       end
 
       # @param model [Model]
-      # @yieldreturn [Object] the call itself
+      # @yieldreturn [Object] the call itself, and nothing else: a retry runs the
+      #   block again, so it must be safe to repeat
       # @return [Object] the block's value
       # @raise [StandardError] what the call raised, when it cannot or may not be retried
       def call(model)

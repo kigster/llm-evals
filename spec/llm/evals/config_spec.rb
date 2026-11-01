@@ -85,6 +85,24 @@ RSpec.describe LLM::Evals::Config do
     it { expect { config.contenders }.to raise_error(LLM::Evals::Error, /unknown keys under jev: ratelimit/) }
   end
 
+  context "with a provider section that sets only a limit" do
+    before { File.write(path, "typesafe:\n  rate_limit: { burst: 1 }\n") }
+
+    it { expect { config.contenders }.to raise_error(LLM::Evals::Error, /rate_limit of typesafe needs burst/) }
+  end
+
+  context "with a misspelled provider" do
+    before { File.write(path, "openroutr:\n  model: a\n") }
+
+    it { expect { config.contenders }.to raise_error(LLM::Evals::Error, /unknown provider "openroutr"/) }
+  end
+
+  context "with another tool's mapping" do
+    before { File.write(path, "jev:\n  mappings: {}\n") }
+
+    its(:contenders) { is_expected.to eq([]) }
+  end
+
   describe "#throttle" do
     before do
       File.write(path, <<~YAML)
