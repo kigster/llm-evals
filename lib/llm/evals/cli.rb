@@ -37,6 +37,7 @@ module LLM
       register "cases", Cases
       register "verify", Verify
       register "upgrade-config", UpgradeConfig
+      register "weights", Weights
       register "version", Version, aliases: ["-V", "--version"]
       register "completion", Dry::CLI::Autocomplete::Command[self, program_name: PROGRAM]
     end
