@@ -26,15 +26,15 @@ module LLM
 
           setup!(contenders, options)
           runs = datasets.flat_map { |name| contenders.map { experiment(it, config, options, dataset: name) } }
-          summaries = execute(runs, concurrency: concurrency(options), budget: config.error_budget)
-          report(summaries,
+          outcome = execute(runs, concurrency: concurrency(options), budget: config.error_budget)
+          report(outcome.summaries,
             output:      options[:output],
             open:        options[:open],
             scores:      options[:scores],
             format:      options[:format],
             config:,
             options:,
-            run_options: serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:)) do |display_summaries|
+            run_options: serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds: outcome.seconds)) do |display_summaries|
             display_summaries.each { breakdown(it, titled: display_summaries.size > 1) }
           end
           abort_if_spent
