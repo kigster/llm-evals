@@ -37,7 +37,7 @@ module LLM
         #
         # @return [Array<Tracker>]
         def for_experiment
-          context = { suite: @configuration.name, project:, project_id: @options[:project] ? nil : @env["BRAINTRUST_PROJECT_ID"].to_s[/\S+/] }
+          context = { suite: @configuration.name, project:, project_id: @options[:project] ? nil : Trackers::Braintrust.project_id(@env) }
           local = Trackers::Local.new(dir: File.join(Dry::CLI::UI::Invocation.root(Dir.pwd), "log", "llm-evals"), **context)
           klass = remote
           [local, klass&.new(**context, options: @config.tracker_options(klass.tracker_name))].compact
