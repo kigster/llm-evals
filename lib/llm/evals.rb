@@ -10,9 +10,9 @@ require "zeitwerk"
 
 module LLM
   # A generic evaluation runner with a one-way boundary. The consumer suite
-  # registers an {Adapter}, which runs one {Case} against a {Model} and
-  # returns a {Reply} without scoring it, and a {Scorer}, which turns a reply
-  # into a {Score} without calling anything. Everything else, from discovery
+  # registers an {Actions::Adapter}, which runs one {Datasets::Case} against a {Models::Model} and
+  # returns a {Results::Reply} without scoring it, and a {Scoring::Scorer}, which turns a reply
+  # into a {Results::Score} without calling anything. Everything else, from discovery
   # to the leaderboard, is this gem's, and none of it knows what is being
   # evaluated.
   module Evals
@@ -24,9 +24,9 @@ module LLM
     class << self
       # The suite's settings, filled in by {.configure} from `evals/eval_helper.rb`.
       #
-      # @return [Configuration]
+      # @return [Runtime::Configuration]
       def configuration
-        @configuration ||= Configuration.new
+        @configuration ||= Runtime::Configuration.new
       end
 
       # Builds the suite's configuration. Called once from the eval helper.
@@ -40,8 +40,8 @@ module LLM
       #     c.before_run { MyGem.reset_configuration! }
       #   end
       #
-      # @yieldparam configuration [Configuration]
-      # @return [Configuration]
+      # @yieldparam configuration [Runtime::Configuration]
+      # @return [Runtime::Configuration]
       def configure
         yield configuration
         configuration

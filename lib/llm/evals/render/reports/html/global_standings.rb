@@ -8,7 +8,7 @@ module LLM
           # The page's overall ranking: one entry per model at one setting, over
           # every dataset. Only complete contenders are ranked.
           class GlobalStandings
-            # @param summaries [Array<Experiment::Summary>]
+            # @param summaries [Array<Actions::Experiment::Summary>]
             # @param ranking [Ranking]
             def initialize(summaries, ranking)
               @summaries = summaries

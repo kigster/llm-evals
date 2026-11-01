@@ -16,7 +16,7 @@ module LLM
           include Format
 
           # Directory containing the report template and its embedded assets.
-          TEMPLATE_DIRECTORY = File.expand_path("../../templates", __dir__)
+          TEMPLATE_DIRECTORY = File.expand_path("../templates", __dir__)
 
           # @param report [JSON::Loaded] decoded from a saved JSON snapshot
           # @return [String]
@@ -57,18 +57,18 @@ module LLM
 
           def view = @view ||= ViewModel.new(report)
 
-          # @param model [Model]
+          # @param model [Models::Model]
           # @return [Array<String>] HTML-escaped provider and model names
           def model_parts(model)
             provider, name = model.id.to_s.split("/", 2)
             [escape(provider), escape(name || provider)]
           end
 
-          # @param model [Model]
+          # @param model [Models::Model]
           # @return [String] escaped effort setting, or `default`
           def effort_label(model) = escape(model.effort_label)
 
-          # @param model [Model]
+          # @param model [Models::Model]
           # @return [String] escaped temperature setting, or `default`
           def temperature_label(model) = escape(model.temperature_label)
 

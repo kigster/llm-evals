@@ -35,7 +35,7 @@ RSpec.describe LLM::Evals::Config do
 
     it "builds a new budget each time, since a budget counts one run" do
       limits = from("total" => 5)
-      expect(limits.budget).to be_a(LLM::Evals::ErrorBudget).and have_attributes(total: 5, percent: nil)
+      expect(limits.budget).to be_a(LLM::Evals::Actions::ErrorBudget).and have_attributes(total: 5, percent: nil)
       expect(limits.budget).not_to equal(limits.budget)
     end
 

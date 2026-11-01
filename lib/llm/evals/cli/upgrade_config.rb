@@ -22,7 +22,7 @@ module LLM
           raise Error, "no config file at #{path}" unless File.exist?(path)
 
           text = File.read(path)
-          upgrade = ConfigUpgrade.new(text, path:)
+          upgrade = Config::Upgrade.new(text, path:)
           return status_box(:info, "#{path} is already in the current format") unless upgrade.needed?
 
           upgraded = upgrade.call

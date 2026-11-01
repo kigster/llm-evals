@@ -122,7 +122,7 @@ RSpec.describe LLM::Evals::Config do
           models:
             - jev-1.14.0
       YAML
-      allow(LLM::Evals::Throttle).to receive(:new).and_call_original
+      allow(LLM::Evals::Models::Throttle).to receive(:new).and_call_original
     end
 
     it "is one throttle, for every model of a run to share" do
@@ -147,10 +147,10 @@ RSpec.describe LLM::Evals::Config do
 
     it "keys each limit by provider, vendor and model" do
       config.throttle
-      expect(LLM::Evals::Throttle).to have_received(:new).with(
-        { "openrouter"                          => an_instance_of(LLM::Evals::Throttle::Limit),
-          "openrouter/anthropic"                => an_instance_of(LLM::Evals::Throttle::Limit),
-          "openrouter/anthropic/claude-fable-5" => an_instance_of(LLM::Evals::Throttle::Limit) }
+      expect(LLM::Evals::Models::Throttle).to have_received(:new).with(
+        { "openrouter"                          => an_instance_of(LLM::Evals::Models::Throttle::Limit),
+          "openrouter/anthropic"                => an_instance_of(LLM::Evals::Models::Throttle::Limit),
+          "openrouter/anthropic/claude-fable-5" => an_instance_of(LLM::Evals::Models::Throttle::Limit) }
       )
     end
 

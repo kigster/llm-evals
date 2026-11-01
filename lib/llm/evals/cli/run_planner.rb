@@ -8,7 +8,7 @@ module LLM
       # What a run will do: which datasets, how many cases and experiments at
       # once, and one experiment per dataset and contender.
       class RunPlanner
-        # @param configuration [Configuration]
+        # @param configuration [Runtime::Configuration]
         # @param config [Config]
         # @param options [Hash] the parsed flags
         # @param trackers [TrackerResolver]
@@ -30,8 +30,8 @@ module LLM
         end
 
         # @param datasets [Array<String>]
-        # @param contenders [Array<Contender>]
-        # @return [Array<Experiment>]
+        # @param contenders [Array<Models::Contender>]
+        # @return [Array<Actions::Experiment>]
         def experiments(datasets, contenders)
           datasets.flat_map { |dataset| contenders.map { experiment(it, dataset) } }
         end
@@ -61,7 +61,7 @@ module LLM
         end
 
         def experiment(contender, dataset)
-          Experiment.new(
+          Actions::Experiment.new(
             model:       @configuration.providers.model_for(contender, throttle: @config.throttle),
             cases:       discovery.cases!(dataset:, only: @options[:case]),
             adapter:     @configuration.adapter,

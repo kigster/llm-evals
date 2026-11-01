@@ -7,7 +7,7 @@ module LLM
       # suite's project, through the braintrust gem's own OpenTelemetry
       # exporter, the way `Braintrust::Eval.run` would have, except that the
       # loop stays ours. The gem is required only when this tracker is chosen.
-      class Braintrust < Tracker
+      class Braintrust < Base
         # @param env [#[]]
         # @return [String, nil] the project BRAINTRUST_PROJECT_ID names
         def self.project_id(env = ENV) = env["BRAINTRUST_PROJECT_ID"].to_s[/\S+/]
@@ -21,7 +21,7 @@ module LLM
 
         # Logs in, finds or creates the project, creates the experiment.
         #
-        # @param experiment [Experiment]
+        # @param experiment [Actions::Experiment]
         # @return [void]
         def start(experiment)
           ::Braintrust.init(blocking_login: true, auto_instrument: false)
@@ -45,7 +45,7 @@ module LLM
         # runner emits: input, expected, output, scores and metadata as JSON
         # attributes, parented to the experiment.
         #
-        # @param result [RunResult]
+        # @param result [Results::RunResult]
         # @return [void]
         def record(result)
           span = @tracer.start_root_span("eval")

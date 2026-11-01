@@ -18,8 +18,8 @@ RSpec.describe LLM::Evals::CLI::RunPlanner do
     end
 
     it "refuses a suite with no datasets" do
-      discovery = instance_double(LLM::Evals::Discovery, datasets: [], root: "evals")
-      empty = instance_double(LLM::Evals::Configuration, discovery:)
+      discovery = instance_double(LLM::Evals::Datasets::Discovery, datasets: [], root: "evals")
+      empty = instance_double(LLM::Evals::Runtime::Configuration, discovery:)
       expect { described_class.new(configuration: empty, config:, options:, trackers:).datasets([]) }
         .to raise_error(LLM::Evals::Error, "no datasets under evals")
     end
@@ -27,7 +27,7 @@ RSpec.describe LLM::Evals::CLI::RunPlanner do
 
   describe "#experiments" do
     let(:options) { { case: ["clear"] } }
-    let(:contender) { LLM::Evals::Contender.new(model: "fake/echo") }
+    let(:contender) { LLM::Evals::Models::Contender.new(model: "fake/echo") }
 
     it "makes one per dataset and contender, of the selected cases" do
       runs = planner.experiments(["colors"], [contender, contender])

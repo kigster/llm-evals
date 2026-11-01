@@ -4,7 +4,7 @@ RSpec.describe LLM::Evals::Render::Reports::HTML::ViewModel do
   subject(:view) { described_class.new(report) }
 
   let(:providers) { LLM::Evals.configuration.providers }
-  let(:metric) { LLM::Evals::Metric.new(name: "accuracy", primary: true) }
+  let(:metric) { LLM::Evals::Scoring::Metric.new(name: "accuracy", primary: true) }
   let(:usage) { { input_tokens: 1000, output_tokens: 2, cost_usd: 0.011 } }
   let(:weighted_score) { nil }
   let(:report) do
@@ -16,19 +16,19 @@ RSpec.describe LLM::Evals::Render::Reports::HTML::ViewModel do
      summary("fake/half", "one", [ok("a", 1.0), broken("b")])]
   end
 
-  def model(id) = LLM::Evals::Model.new(id:, provider: providers.for("fake/echo"), settings: {})
+  def model(id) = LLM::Evals::Models::Model.new(id:, provider: providers.for("fake/echo"), settings: {})
 
-  def kase(id, dataset: "one") = LLM::Evals::Case.new(id:, dataset:, variant: "clear", input: "", expected: nil, path: "", metadata: {})
+  def kase(id, dataset: "one") = LLM::Evals::Datasets::Case.new(id:, dataset:, variant: "clear", input: "", expected: nil, path: "", metadata: {})
 
   def ok(id, value, dataset: "one")
-    score = LLM::Evals::Score.new(value:, metrics: { "accuracy" => value }, outcomes: {}, diagnostics: { "d" => id })
-    LLM::Evals::RunResult.new(experiment: nil, case: kase(id, dataset:), reply: nil, score:, duration: 1.0)
+    score = LLM::Evals::Results::Score.new(value:, metrics: { "accuracy" => value }, outcomes: {}, diagnostics: { "d" => id })
+    LLM::Evals::Results::RunResult.new(experiment: nil, case: kase(id, dataset:), reply: nil, score:, duration: 1.0)
   end
 
-  def broken(id, dataset: "one") = LLM::Evals::RunResult.new(experiment: nil, case: kase(id, dataset:), reply: nil, score: nil, duration: 1.0, error: "boom")
+  def broken(id, dataset: "one") = LLM::Evals::Results::RunResult.new(experiment: nil, case: kase(id, dataset:), reply: nil, score: nil, duration: 1.0, error: "boom")
 
   def summary(id, dataset, results)
-    LLM::Evals::Experiment::Summary.new(model: model(id), dataset:, name: id, means: {}, results:, errors: [], duration: 2.0, permalink: nil, usage: LLM::Evals::Usage.from(usage))
+    LLM::Evals::Actions::Experiment::Summary.new(model: model(id), dataset:, name: id, means: {}, results:, errors: [], duration: 2.0, permalink: nil, usage: LLM::Evals::Stats::Usage.from(usage))
   end
 
   it { expect(view.report_title).to eq("toy evaluation report") }
@@ -69,7 +69,7 @@ RSpec.describe LLM::Evals::Render::Reports::HTML::ViewModel do
     end
 
     context "with weights" do
-      let(:weighted_score) { LLM::Evals::WeightedScore.new({ "accuracy" => -1 }, metrics: ["accuracy"]) }
+      let(:weighted_score) { LLM::Evals::Scoring::WeightedScore.new({ "accuracy" => -1 }, metrics: ["accuracy"]) }
 
       it "ranks by them, not the primary metric" do
         expect(standings[:leader][:model].id).to eq("fake/fair")
@@ -110,13 +110,13 @@ RSpec.describe LLM::Evals::Render::Reports::HTML::ViewModel do
     end
 
     it "shows the reply's error" do
-      reply = LLM::Evals::Reply.new(output: nil, raw: nil, usage: {}, error: "refused", metadata: {})
-      run = LLM::Evals::RunResult.new(experiment: nil, case: kase("a"), reply:, score: nil, duration: 0.0)
+      reply = LLM::Evals::Results::Reply.new(output: nil, raw: nil, usage: {}, error: "refused", metadata: {})
+      run = LLM::Evals::Results::RunResult.new(experiment: nil, case: kase("a"), reply:, score: nil, duration: 0.0)
       expect(status_of(run)).to include(status: "refused", details: {})
     end
 
     it "admits a run with no score" do
-      run = LLM::Evals::RunResult.new(experiment: nil, case: kase("a"), reply: nil, score: nil, duration: 0.0)
+      run = LLM::Evals::Results::RunResult.new(experiment: nil, case: kase("a"), reply: nil, score: nil, duration: 0.0)
       expect(status_of(run)).to include(status: "No score")
     end
 

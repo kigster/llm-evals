@@ -8,12 +8,12 @@ module LLM
           # How the page measures a contender and ranks a group of them. Standings
           # and dataset sections differ in what they group, never in this.
           class Ranking
-            # @param result [RunResult]
+            # @param result [Results::RunResult]
             # @return [Boolean] whether the result counts for nothing
             def self.failed?(result) = !result.score || result.failed? || result.reply&.error?
 
-            # @param metrics [Array<Metric>]
-            # @param weighted_score [WeightedScore, nil]
+            # @param metrics [Array<Scoring::Metric>]
+            # @param weighted_score [Scoring::WeightedScore, nil]
             def initialize(metrics:, weighted_score:)
               @metrics = metrics
               @weighted_score = weighted_score
@@ -22,7 +22,7 @@ module LLM
             # @return [String]
             def primary_metric = @metrics.find(&:primary)&.name || "score"
 
-            # @param group [Array<Experiment::Summary>]
+            # @param group [Array<Actions::Experiment::Summary>]
             # @param expected_keys [Array<String>]
             # @return [Hash{Symbol => Object}] model coverage and score inputs
             def entry(group, expected_keys)

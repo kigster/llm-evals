@@ -12,7 +12,7 @@ RSpec.describe LLM::Evals::Providers::Base do
   it { expect(provider.unknown(%w[a b])).to eq([]) }
 
   it "requires complete to be overridden" do
-    model = LLM::Evals::Model.new(id: "x", provider: provider)
+    model = LLM::Evals::Models::Model.new(id: "x", provider: provider)
     expect { model.complete(user: "x") }.to raise_error(NotImplementedError, /Completion/)
   end
 

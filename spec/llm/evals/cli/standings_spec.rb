@@ -3,7 +3,7 @@
 RSpec.describe LLM::Evals::CLI::Standings do
   subject(:standings) { described_class.new(metrics: [metric], primary: metric) }
 
-  let(:metric) { LLM::Evals::Metric.new(name: "accuracy", primary: true) }
+  let(:metric) { LLM::Evals::Scoring::Metric.new(name: "accuracy", primary: true) }
 
   describe "#best_value" do
     it "picks the cheapest entry within two points of the best primary metric" do

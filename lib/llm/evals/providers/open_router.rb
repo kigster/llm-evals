@@ -55,11 +55,11 @@ module LLM
           Float(value, exception: false) if value
         end
 
-        # @param model [Model]
+        # @param model [Models::Model]
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean] asks for `response_format: json_object`
-        # @return [Completion] text, plus the tokens and the cost OpenRouter billed
+        # @return [Results::Completion] text, plus the tokens and the cost OpenRouter billed
         def complete(model, system:, user:, json: true)
           LLM::Evals.optional!("ruby_llm", needed_for: "calling models through OpenRouter")
           chat = RubyLLM.chat(model: model.name, provider: :openrouter, assume_model_exists: true)
@@ -70,9 +70,9 @@ module LLM
           chat.with_provider_options(response_format: { type: "json_object" }) if json
 
           message = chat.ask(user)
-          Completion.new(
+          Results::Completion.new(
             text:  message.content.to_s,
-            usage: Usage.new(input_tokens: message.tokens.input.to_i,
+            usage: Stats::Usage.new(input_tokens: message.tokens.input.to_i,
               output_tokens: message.tokens.output.to_i,
               cost_usd: message.tokens.reported_cost.to_f),
             raw:   message

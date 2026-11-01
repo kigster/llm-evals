@@ -2,14 +2,36 @@
 
 ## Unreleased
 
+- Breaking: move every class out of the top of `LLM::Evals` into a module of its own. There are no aliases; rename as follows:
+
+  | Module                 | Constants                                                             |
+  | ---------------------- | --------------------------------------------------------------------- |
+  | `LLM::Evals::Runtime`  | `Configuration`, `Helper`; `Runtime` is now `Runtime::Environment`    |
+  | `LLM::Evals::Datasets` | `Case`, `Discovery`                                                   |
+  | `LLM::Evals::Scoring`  | `Scorer`, `Metric`, `WeightedScore`, `SchemaValidator`                |
+  | `LLM::Evals::Models`   | `Model`, `Contender`, `Throttle`                                      |
+  | `LLM::Evals::Actions`  | `Experiment`, `Adapter`, `Verify`, `ErrorBudget`                      |
+  | `LLM::Evals::Results`  | `Reply`, `Score`, `Completion`, `RunResult`, `RunOutcome`, `Warnings` |
+  | `LLM::Evals::Stats`    | `CallStats`, `Usage` (`Stats` itself stays)                           |
+
+  `LLM::Evals::Tracker` is now `LLM::Evals::Trackers::Base`, and `LLM::Evals::ConfigUpgrade` is `LLM::Evals::Config::Upgrade`. `LLM::Evals.configure` and `.configuration` are unchanged.
+
 - Add `Model#ask` and `Providers::TypeSafe#ask`: typed questions to TypeSafe's API, through the same limits and retries.
+
 - Add `evals upgrade-config`, which rewrites a lineup to the current format, keeping its comments and leaving `<file>.bak`.
+
 - Breaking: the lineup lists models under a provider section (`openrouter: { vendors: ... }`, `typesafe: { models: ... }`). Top-level `vendors:` and `direct:` are errors.
+
 - Add `rate_limit: { burst, per_minute }` per provider, vendor and model, through `ruby-limiter`. Waiting is left out of `time`.
+
 - Turn RubyLLM's retries off and retry here, honoring `Retry-After` across a vendor's calls, up to 5 attempts.
+
 - Add `errors.abort_after` to the lineup: a run stops once it has `total` errors and, if set, `percent` of finished calls have failed. Partial results are kept and the command exits non-zero.
+
 - Add `evals weights`, which prints each weighted column's direction, weight and real share of the score, and names in red any scorer metric the weights leave out.
+
 - Report calls per provider, vendor and model: requests, errors, requests per second, average and 95th percentile latency, in the terminal and as `call_stats` in the JSON. Add `latency` and `p95` as columns `weighted_score` can weight.
+
 - Draw failed cases in red on the progress bars of `run` and `compare`, so a failing model or account shows while the run is still going.
 
 ## 0.4.0 (2026-10-30)

@@ -30,7 +30,7 @@ module LLM
 
             # @return [Hash{Symbol => Object}] health counts and cost for the template
             def health_summary
-              usage = summaries.map(&:usage).reduce(Usage.zero, :+)
+              usage = summaries.map(&:usage).reduce(Stats::Usage.zero, :+)
               failed = results.count { Ranking.failed?(it) }
               { successful:    results.size - failed,
                 total:         results.size,
@@ -48,8 +48,8 @@ module LLM
               summaries.group_by(&:dataset).sort.map { |name, group| DatasetSection.new(name, group, @ranking).to_h }
             end
 
-            # @param kase [Case]
-            # @param group [Array<Experiment::Summary>]
+            # @param kase [Datasets::Case]
+            # @param group [Array<Actions::Experiment::Summary>]
             # @return [Array<Hash{Symbol => Object}>] runs and display values for one case
             def case_results(kase, group)
               group.flat_map(&:results).select { it.case.key == kase.key }.map do |run|

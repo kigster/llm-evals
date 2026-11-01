@@ -8,13 +8,13 @@ RSpec.describe LLM::Evals::CLI::RunRecord do
   let(:cli) { { models: [], local: false } }
   let(:config) { instance_double(LLM::Evals::Config, request_types: [:prompt], defaults: { "parallelism" => 4 }) }
   let(:planner) { instance_double(LLM::Evals::CLI::RunPlanner, parallelism: 4, concurrency: 2) }
-  let(:remote) { class_double(LLM::Evals::Tracker, tracker_name: "braintrust") }
+  let(:remote) { class_double(LLM::Evals::Trackers::Base, tracker_name: "braintrust") }
   let(:trackers) { instance_double(LLM::Evals::CLI::TrackerResolver, project: "p", remote:) }
   let(:provider) { instance_double(LLM::Evals::Providers::Base, name: "fake") }
   let(:providers) { instance_double(LLM::Evals::Providers::Registry, for: provider) }
-  let(:contender) { LLM::Evals::Contender.new(model: "fake/echo", effort: "low", temperature: 0.2, max_tokens: 10) }
-  let(:kase) { instance_double(LLM::Evals::Case, id: "clear/001") }
-  let(:runs) { Array.new(2) { instance_double(LLM::Evals::Experiment, dataset: "colors", cases: [kase]) } }
+  let(:contender) { LLM::Evals::Models::Contender.new(model: "fake/echo", effort: "low", temperature: 0.2, max_tokens: 10) }
+  let(:kase) { instance_double(LLM::Evals::Datasets::Case, id: "clear/001") }
+  let(:runs) { Array.new(2) { instance_double(LLM::Evals::Actions::Experiment, dataset: "colors", cases: [kase]) } }
 
   it "keeps the flags as they were given" do
     expect(record).to include(command: "run", cli:)

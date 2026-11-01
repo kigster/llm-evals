@@ -7,7 +7,7 @@ RSpec.describe LLM::Evals::Providers::Registry do
   let(:direct_jev) { contender("typesafe/jev-latest", provider: :typesafe) }
 
   def contender(model, provider: nil)
-    LLM::Evals::Contender.new(model: model, effort: "default", temperature: 0.1, max_tokens: 10, provider: provider)
+    LLM::Evals::Models::Contender.new(model: model, effort: "default", temperature: 0.1, max_tokens: 10, provider: provider)
   end
 
   it { expect(registry.map(&:name)).to eq(%w[typesafe openrouter]) }
@@ -51,7 +51,7 @@ RSpec.describe LLM::Evals::Providers::Registry do
 
   it "gives the model the throttle it is handed" do
     registry.register(fake)
-    throttle = instance_double(LLM::Evals::Throttle)
+    throttle = instance_double(LLM::Evals::Models::Throttle)
     allow(throttle).to receive(:call).and_return(:gated)
     expect(registry.model_for(contender("fake/x"), throttle:).complete(user: "hi")).to eq(:gated)
   end

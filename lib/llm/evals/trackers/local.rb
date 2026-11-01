@@ -8,11 +8,11 @@ module LLM
       # Always on: every experiment's results and summary land in one JSON
       # file under `log/`, so a run is never lost to a closed terminal or a
       # remote tracker that was never configured.
-      class Local < Tracker
+      class Local < Base
         attr_reader :dir, :path
 
         # @param dir [String] where the files go; `log/llm-evals` at the repository root by default
-        # @param context [Hash] see {Tracker#initialize}
+        # @param context [Hash] see {Base#initialize}
         def initialize(dir: File.join(Dry::CLI::UI::Invocation.root(Dir.pwd), "log", "llm-evals"), **context)
           super(**context)
           @dir = dir

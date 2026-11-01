@@ -3,9 +3,9 @@
 RSpec.describe LLM::Evals::Render::Reports::JSON do
   describe ".dump and .load" do
     let(:provider) { LLM::Evals.configuration.providers.for("fake/echo") }
-    let(:model) { LLM::Evals::Model.new(id: "fake/echo", provider:, settings: { effort: "low", temperature: 0.2 }) }
+    let(:model) { LLM::Evals::Models::Model.new(id: "fake/echo", provider:, settings: { effort: "low", temperature: 0.2 }) }
     let(:kase) do
-      LLM::Evals::Case.new(id: "clear/001",
+      LLM::Evals::Datasets::Case.new(id: "clear/001",
         dataset: "colors",
         variant: "clear",
         input: "Choose blue.",
@@ -14,20 +14,20 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
         metadata: { number: 1, difficulty: 2 })
     end
     let(:experiment) do
-      LLM::Evals::Experiment.new(model:,
+      LLM::Evals::Actions::Experiment.new(model:,
         cases: [kase],
         adapter: LLM::Evals.configuration.adapter,
         scorer: LLM::Evals.configuration.scorer)
     end
-    let(:score) { LLM::Evals::Score.new(value: 1, metrics: { "accuracy" => 1 }, outcomes: { "color" => true }, diagnostics: {}) }
+    let(:score) { LLM::Evals::Results::Score.new(value: 1, metrics: { "accuracy" => 1 }, outcomes: { "color" => true }, diagnostics: {}) }
     let(:reply) do
-      LLM::Evals::Reply.new(output: { color: "blue" },
+      LLM::Evals::Results::Reply.new(output: { color: "blue" },
         raw: "{\"color\":\"blue\"}",
         usage: { input_tokens: 4, output_tokens: 2, cost_usd: 0.001 })
     end
-    let(:result) { LLM::Evals::RunResult.new(experiment:, case: kase, reply:, score:, duration: 0.25) }
+    let(:result) { LLM::Evals::Results::RunResult.new(experiment:, case: kase, reply:, score:, duration: 0.25) }
     let(:summary) do
-      LLM::Evals::Experiment::Summary.new(model:,
+      LLM::Evals::Actions::Experiment::Summary.new(model:,
         dataset: "colors",
         name: experiment.name,
         means: { "accuracy" => 1.0, "score" => 1.0 },
@@ -37,8 +37,8 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
         permalink: nil,
         usage: reply.usage)
     end
-    let(:metric) { LLM::Evals::Metric.new(name: "accuracy", primary: true) }
-    let(:weighted) { LLM::Evals::WeightedScore.new({ "accuracy" => 0.75, "cost" => -0.25 }, metrics: ["accuracy"]) }
+    let(:metric) { LLM::Evals::Scoring::Metric.new(name: "accuracy", primary: true) }
+    let(:weighted) { LLM::Evals::Scoring::WeightedScore.new({ "accuracy" => 0.75, "cost" => -0.25 }, metrics: ["accuracy"]) }
 
     it "round trips summaries, case data, replies, metrics, and ranking weights" do
       document = described_class.dump([summary], metrics: [metric], weighted_score: weighted)
@@ -63,10 +63,10 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
   describe ".dump's call stats" do
     it "records calls per provider, with the run's length" do
       provider = instance_double(LLM::Evals::Providers::Base, name: "openrouter", direct?: false)
-      model = instance_double(LLM::Evals::Model, id: "anthropic/a", provider: provider, settings: {})
-      kase = LLM::Evals::Case.new(id: "clear/001", dataset: "d", variant: "clear", input: "i", expected: nil, path: "", metadata: {})
-      result = instance_double(LLM::Evals::RunResult, case: kase, reply: nil, score: nil, error: nil, duration: 2.0, errored?: false)
-      summary = instance_double(LLM::Evals::Experiment::Summary,
+      model = instance_double(LLM::Evals::Models::Model, id: "anthropic/a", provider: provider, settings: {})
+      kase = LLM::Evals::Datasets::Case.new(id: "clear/001", dataset: "d", variant: "clear", input: "i", expected: nil, path: "", metadata: {})
+      result = instance_double(LLM::Evals::Results::RunResult, case: kase, reply: nil, score: nil, error: nil, duration: 2.0, errored?: false)
+      summary = instance_double(LLM::Evals::Actions::Experiment::Summary,
         model:            model,
         results:          [result],
         worked_durations: [2.0],
@@ -76,7 +76,7 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
         errors:           [],
         duration:         2.0,
         permalink:        nil,
-        usage:            LLM::Evals::Usage.zero)
+        usage:            LLM::Evals::Stats::Usage.zero)
       document = JSON.parse(described_class.dump([summary], metrics: [], run_options: { effective: { seconds: 4.0 } }))
       expect(document["call_stats"].first).to include("name" => "openrouter", "requests" => 1, "per_second" => 0.25, "p95" => 2.0)
     end

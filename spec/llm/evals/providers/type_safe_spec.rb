@@ -4,7 +4,7 @@ RSpec.describe LLM::Evals::Providers::TypeSafe do
   subject(:provider) { described_class.new }
 
   describe "#ask" do
-    let(:model) { LLM::Evals::Model.new(id: "typesafe/jev-1.14.0", provider: provider, settings: {}) }
+    let(:model) { LLM::Evals::Models::Model.new(id: "typesafe/jev-1.14.0", provider: provider, settings: {}) }
     let(:questions) { { "paid" => { type: "noul", instructions: "Was it paid?" } } }
 
     before { stub_const("ENV", ENV.to_h.merge("TYPESAFE_API_KEY" => "test-key")) }
@@ -84,7 +84,7 @@ RSpec.describe LLM::Evals::Providers::TypeSafe do
   end
 
   it "refuses to chat" do
-    model = provider.model_for(LLM::Evals::Contender.new(model: "typesafe/jev-latest", provider: :typesafe))
+    model = provider.model_for(LLM::Evals::Models::Contender.new(model: "typesafe/jev-latest", provider: :typesafe))
     expect { model.complete(user: "x") }.to raise_error(LLM::Evals::Error, /answers typed questions, not prompts/)
   end
 end

@@ -9,7 +9,7 @@ module LLM
       # flag first, then the config entry, then .llm-evals.config.yml's defaults.
       #
       # Every column that is not a metric is the gem's; the metric columns,
-      # their glossary and the ranking come from the suite's {Scorer#metrics}.
+      # their glossary and the ranking come from the suite's {Scoring::Scorer#metrics}.
       class ModelCommand < Command
         include Formatting
 
@@ -58,7 +58,7 @@ module LLM
 
         # What prints before the leaderboard; nothing, unless a subclass says.
         #
-        # @param _summaries [Array<Experiment::Summary>]
+        # @param _summaries [Array<Actions::Experiment::Summary>]
         # @return [void]
         def details(_summaries) = nil
 
@@ -68,21 +68,21 @@ module LLM
         # @return [Providers::Registry]
         def providers = configuration.providers
 
-        # @return [Scorer]
+        # @return [Scoring::Scorer]
         def scorer = configuration.scorer
 
-        # @return [Array<Metric>]
+        # @return [Array<Scoring::Metric>]
         def metrics = @report_metrics || scorer.metrics
 
         # Reads the file's weights before anything is spent, so a bad one fails
         # the run rather than the report at its end.
         #
-        # @return [WeightedScore, nil] nil when the file sets none
+        # @return [Scoring::WeightedScore, nil] nil when the file sets none
         # @raise [Error] on a bad weight
         def weigh(config)
           config.validate!
           weights = config.score_weights
-          @weighted = weights.empty? ? nil : WeightedScore.new(weights, metrics: metrics.map(&:name))
+          @weighted = weights.empty? ? nil : Scoring::WeightedScore.new(weights, metrics: metrics.map(&:name))
         end
 
         # Env, the tracker's gems and key, hooks, provider clients, then the catalogs.
@@ -99,13 +99,13 @@ module LLM
           save_warnings
         end
 
-        # @return [Warnings] what this command has held back from the screen
-        def warnings = @warnings ||= Warnings.new
+        # @return [Results::Warnings] what this command has held back from the screen
+        def warnings = @warnings ||= Results::Warnings.new
 
         # Prints what the block writes, then the leaderboard, its glossary and
         # the scores, when the run's display is the terminal; see {ReportDispatcher}.
         #
-        # @param summaries [Array<Experiment::Summary>]
+        # @param summaries [Array<Actions::Experiment::Summary>]
         # @param output [String, nil] what -o was given: nil, "-", "" for the default file, or a path
         # @param open [Boolean]
         # @param scores [Boolean] also print every experiment by score
@@ -138,7 +138,7 @@ module LLM
           terminal = LLM::Evals::Render::Reports::Terminal.new(invocation:, writing_to: method(:writing_to), leaderboard: method(:leaderboard))
           path = terminal.call(summaries:, output:, scores:, totals_mode:) do |shown|
             details&.call(shown)
-            stats = LLM::Evals::Render::Reports::CallStatsTable.new(CallStats.for_run(shown, run_options))
+            stats = LLM::Evals::Render::Reports::CallStatsTable.new(Stats::CallStats.for_run(shown, run_options))
             table(stats.rows, header: LLM::Evals::Render::Reports::CallStatsTable::HEADER, fill: 0)
           end
           status_box(:info, "Report written to #{relative(path)}", stream: err) if path

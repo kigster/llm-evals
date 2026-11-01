@@ -4,17 +4,17 @@ module LLM
   module Evals
     module Render
       module Reports
-        # {CallStats} as the cells of a table, which the caller draws.
+        # {Stats::CallStats} as the cells of a table, which the caller draws.
         class CallStatsTable
           HEADER = ["calls by provider, vendor, model", "requests", "errors", "req/s", "avg", "p95"].freeze
           EMPTY = "-"
 
-          # @param stats [CallStats]
+          # @param stats [Stats::CallStats]
           def initialize(stats)
             @stats = stats
           end
 
-          # @return [Array<Array>] one per {CallStats::Row}, in {HEADER}'s order
+          # @return [Array<Array>] one per {Stats::CallStats::Row}, in {HEADER}'s order
           def rows
             @stats.rows.map do |row|
               [row.name, row.requests, row.errors, rate(row.per_second), seconds(row.latency), seconds(row.p95)]

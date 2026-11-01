@@ -3,7 +3,7 @@
 module LLM
   module Evals
     module Providers
-      # What answers a {Model}'s calls: one API, the ids it serves, the keys it
+      # What answers a {Models::Model}'s calls: one API, the ids it serves, the keys it
       # needs and the models it lists. A suite with its own transport
       # subclasses this and registers it through `c.provider`.
       #
@@ -66,19 +66,19 @@ module LLM
         # @return [void]
         def setup!(**) = nil
 
-        # @param model [Model]
+        # @param model [Models::Model]
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean]
-        # @return [Completion]
+        # @return [Results::Completion]
         def complete(model, system:, user:, json: true)
-          raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Completion"
+          raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Results::Completion"
         end
 
-        # @param model [Model]
+        # @param model [Models::Model]
         # @param state [Object]
         # @param questions [Hash{String => Hash}]
-        # @return [Completion]
+        # @return [Results::Completion]
         def ask(model, state:, questions:)
           raise NotImplementedError, "#{self.class} does not answer typed questions"
         end
@@ -91,10 +91,10 @@ module LLM
         # @return [Numeric, nil] the seconds the API asked to wait, if it did
         def retry_after(_error) = nil
 
-        # @param contender [Contender]
-        # @param throttle [Throttle]
-        # @return [Model]
-        def model_for(contender, throttle: Throttle.new) = Model.new(id: contender.model, provider: self, settings: contender.settings, throttle:)
+        # @param contender [Models::Contender]
+        # @param throttle [Models::Throttle]
+        # @return [Models::Model]
+        def model_for(contender, throttle: Models::Throttle.new) = Models::Model.new(id: contender.model, provider: self, settings: contender.settings, throttle:)
 
         # Every id in `model_ids` the provider does not list.
         #

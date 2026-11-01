@@ -12,7 +12,7 @@ module LLM
       # taking the user prompt, replaces the lookup altogether.
       class FakeProvider < Providers::Base
         PREFIX = "fake/"
-        USAGE = Usage.new(input_tokens: 100, output_tokens: 10, cost_usd: 0.001)
+        USAGE = Stats::Usage.new(input_tokens: 100, output_tokens: 10, cost_usd: 0.001)
         JUNK = "Sure! Here is my answer, in prose rather than JSON."
 
         attr_reader :calls
@@ -20,7 +20,7 @@ module LLM
         # @param junk [Array<String>] case ids or keys to answer with prose
         # @param wrong [Hash{String => Hash}] case id or key => fields to override
         # @param answers [#call, nil] user prompt => reply text; replaces the lookup
-        # @param discovery [Discovery, nil] where to look cases up; the configured suite's when nil
+        # @param discovery [Datasets::Discovery, nil] where to look cases up; the configured suite's when nil
         def initialize(junk: [], wrong: {}, answers: nil, discovery: nil)
           super()
           @junk = junk
@@ -39,14 +39,14 @@ module LLM
         # @return [nil] any id passes verification
         def catalog = nil
 
-        # @param model [Model]
+        # @param model [Models::Model]
         # @param system [String, nil]
         # @param user [String]
         # @param json [Boolean]
-        # @return [Completion]
+        # @return [Results::Completion]
         def complete(model, system:, user:, json: true)
           @lock.synchronize { @calls << { model: model.id, system: system, user: user, json: json } }
-          Completion.new(text: @answers ? @answers.call(user) : answer(user), usage: USAGE)
+          Results::Completion.new(text: @answers ? @answers.call(user) : answer(user), usage: USAGE)
         end
 
         private

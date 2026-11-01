@@ -4,7 +4,7 @@ RSpec.describe LLM::Evals::Testing::FakeProvider do
   subject(:provider) { described_class.new(junk: ["colors/vague/001"], wrong: { "clear/002" => { "rooms" => 9 } }) }
 
   let(:cases) { LLM::Evals.configuration.discovery.cases(dataset: "colors") }
-  let(:model) { LLM::Evals::Model.new(id: "fake/echo", provider: provider) }
+  let(:model) { LLM::Evals::Models::Model.new(id: "fake/echo", provider: provider) }
 
   def answer(kase) = model.complete(user: kase.input).text
 
@@ -23,14 +23,14 @@ RSpec.describe LLM::Evals::Testing::FakeProvider do
 
   it "answers through a callable instead" do
     custom = described_class.new(answers: ->(user) { "[#{user}]" })
-    expect(LLM::Evals::Model.new(id: "fake/x", provider: custom).complete(user: "hi").text).to eq("[hi]")
+    expect(LLM::Evals::Models::Model.new(id: "fake/x", provider: custom).complete(user: "hi").text).to eq("[hi]")
   end
 
   it "looks cases up in the discovery it is given" do
     root = copy_toy_suite
     File.write(File.join(root, "datasets", "colors", "cases", "clear", "001", "expected.json"), '{"wall": "green"}')
     scoped = described_class.new(discovery: configuration_for(root).discovery)
-    expect(JSON.parse(LLM::Evals::Model.new(id: "fake/x", provider: scoped).complete(user: cases[0].input).text)).to eq("wall" => "green")
+    expect(JSON.parse(LLM::Evals::Models::Model.new(id: "fake/x", provider: scoped).complete(user: cases[0].input).text)).to eq("wall" => "green")
   ensure
     FileUtils.remove_entry(File.dirname(root)) if root
   end

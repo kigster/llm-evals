@@ -4,9 +4,9 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
   describe "the report template" do
     let(:template_paths) do
       %w[
-        lib/llm/evals/templates/html_report.html.erb
-        lib/llm/evals/templates/html_report.css
-        lib/llm/evals/templates/html_report.js
+        lib/llm/evals/render/templates/html_report.html.erb
+        lib/llm/evals/render/templates/html_report.css
+        lib/llm/evals/render/templates/html_report.js
       ]
     end
     let(:gem_specification) { Gem::Specification.load(File.expand_path("../../../../../llm-evals.gemspec", __dir__)) }
@@ -18,7 +18,7 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
 
   describe "ranking and case details" do
     let(:configuration) { LLM::Evals.configuration }
-    let(:metrics) { [LLM::Evals::Metric.new(name: "accuracy")] }
+    let(:metrics) { [LLM::Evals::Scoring::Metric.new(name: "accuracy")] }
     let(:echo_model) { build_model("fake/echo") }
     let(:parrot_model) { build_model("fake/parrot") }
     let(:case_one) { build_case("partial/001", number: 1) }
@@ -26,11 +26,11 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
     let(:case_three) { build_case("partial/003", number: 3) }
 
     def build_model(id)
-      LLM::Evals::Model.new(id:, provider: configuration.providers.for(id))
+      LLM::Evals::Models::Model.new(id:, provider: configuration.providers.for(id))
     end
 
     def build_case(id, number:, dataset: "coverage")
-      LLM::Evals::Case.new(
+      LLM::Evals::Datasets::Case.new(
         id:,
         dataset:,
         variant: "partial",
@@ -42,8 +42,8 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
     end
 
     def build_run(model:, kase:, score: nil, reply: nil, error: nil)
-      LLM::Evals::RunResult.new(
-        experiment: instance_double(LLM::Evals::Experiment, model:),
+      LLM::Evals::Results::RunResult.new(
+        experiment: instance_double(LLM::Evals::Actions::Experiment, model:),
         case:       kase,
         score:,
         reply:,
@@ -51,8 +51,8 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
       )
     end
 
-    def build_summary(model:, results:, usage: LLM::Evals::Usage.zero, dataset: "coverage")
-      LLM::Evals::Experiment::Summary.new(
+    def build_summary(model:, results:, usage: LLM::Evals::Stats::Usage.zero, dataset: "coverage")
+      LLM::Evals::Actions::Experiment::Summary.new(
         model:,
         dataset:,
         name: "coverage experiment",
@@ -69,8 +69,8 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
       build_run(
         model:,
         kase:,
-        score: LLM::Evals::Score.new(value: value || accuracy, metrics: { "accuracy" => accuracy }),
-        reply: LLM::Evals::Reply.new(output: { "value" => accuracy })
+        score: LLM::Evals::Results::Score.new(value: value || accuracy, metrics: { "accuracy" => accuracy }),
+        reply: LLM::Evals::Results::Reply.new(output: { "value" => accuracy })
       )
     end
 
@@ -100,8 +100,8 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
                                    build_run(model: echo_model, kase: case_one, error: "transport <script>alert(1)</script>"),
                                    build_run(model: echo_model,
                                      kase: case_two,
-                                     reply: LLM::Evals::Reply.new(error: "reply <script>alert(2)</script>"),
-                                     score: LLM::Evals::Score.failed(metrics, "reply <script>alert(2)</script>")),
+                                     reply: LLM::Evals::Results::Reply.new(error: "reply <script>alert(2)</script>"),
+                                     score: LLM::Evals::Results::Score.failed(metrics, "reply <script>alert(2)</script>")),
                                    build_run(model: echo_model, kase: case_three)
                                  ])
                              ])
@@ -119,7 +119,7 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
       summary = build_summary(
         model:   echo_model,
         results: [scored_run(model: echo_model, kase: case_one, accuracy: 0.8)],
-        usage:   LLM::Evals::Usage.new(input_tokens: 1, output_tokens: 1, cost_usd: 0.001)
+        usage:   LLM::Evals::Stats::Usage.new(input_tokens: 1, output_tokens: 1, cost_usd: 0.001)
       )
 
       expect(render_report([summary])).to include("<b>$0.01</b>", "$0.01")
@@ -132,11 +132,11 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
                                build_summary(model: echo_model,
                                  dataset: "bookkeeping",
                                  results: [scored_run(model: echo_model, kase: bookkeeping_case, accuracy: 0.9)],
-                                 usage: LLM::Evals::Usage.new(input_tokens: 1234, output_tokens: 321, cost_usd: 0.01)),
+                                 usage: LLM::Evals::Stats::Usage.new(input_tokens: 1234, output_tokens: 321, cost_usd: 0.01)),
                                build_summary(model: echo_model,
                                  dataset: "therapy",
                                  results: [scored_run(model: echo_model, kase: therapy_case, accuracy: 0.8)],
-                                 usage: LLM::Evals::Usage.new(input_tokens: 3456, output_tokens: 789, cost_usd: 0.02))
+                                 usage: LLM::Evals::Stats::Usage.new(input_tokens: 3456, output_tokens: 789, cost_usd: 0.02))
                              ])
 
       expect(report).to include("↓ Tokens in", "↑ Tokens out", "1,234", "321", "3,456", "789", "4,690", "1,110")
@@ -155,7 +155,7 @@ RSpec.describe LLM::Evals::Render::Reports::HTML do
     end
 
     context "with a weighted score" do
-      let(:weighted_score) { LLM::Evals::WeightedScore.new({ "accuracy" => 1.0 }, metrics: ["accuracy"]) }
+      let(:weighted_score) { LLM::Evals::Scoring::WeightedScore.new({ "accuracy" => 1.0 }, metrics: ["accuracy"]) }
       let(:weighted_summaries) do
         [
           build_summary(model: echo_model, results: [scored_run(model: echo_model, kase: case_one, accuracy: 0.9, value: 0.6)]),

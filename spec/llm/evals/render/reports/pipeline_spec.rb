@@ -6,13 +6,13 @@ RSpec.describe LLM::Evals::Render::Reports::Pipeline do
   end
 
   let(:configuration) { LLM::Evals.configuration }
-  let(:runtime) { instance_double(LLM::Evals::Runtime, browse: true) }
+  let(:runtime) { instance_double(LLM::Evals::Runtime::Environment, browse: true) }
   let(:dir) { Dir.mktmpdir }
   let(:destination) { File.join(dir, "out") }
-  let(:metrics) { [LLM::Evals::Metric.new(name: "accuracy", primary: true)] }
-  let(:model) { LLM::Evals::Model.new(id: "fake/echo", provider: configuration.providers.for("fake/echo")) }
+  let(:metrics) { [LLM::Evals::Scoring::Metric.new(name: "accuracy", primary: true)] }
+  let(:model) { LLM::Evals::Models::Model.new(id: "fake/echo", provider: configuration.providers.for("fake/echo")) }
   let(:summary) do
-    LLM::Evals::Experiment::Summary.new(model:,
+    LLM::Evals::Actions::Experiment::Summary.new(model:,
       dataset: "colors",
       name: "fake/echo",
       means: { "accuracy" => 1.0 },
@@ -20,7 +20,7 @@ RSpec.describe LLM::Evals::Render::Reports::Pipeline do
       errors: [],
       duration: 0.0,
       permalink: nil,
-      usage: LLM::Evals::Usage.zero)
+      usage: LLM::Evals::Stats::Usage.zero)
   end
   let(:arguments) { { summaries: [summary], metrics:, weighted_score: nil, run_options: {} } }
 

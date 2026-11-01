@@ -14,7 +14,7 @@ module LLM
       # already set, the SDK's own reading of it wins and {#describe} says so.
       # The raw reply is not sent unless the config file opts in with
       # `logfire: { include_replies: true }`.
-      class Logfire < Tracker
+      class Logfire < Base
         # Logfire's US region, per their docs on 2026-10-15; other regions
         # exist, so LOGFIRE_BASE_URL overrides it.
         DEFAULT_BASE_URL = "https://logfire-us.pydantic.dev"
@@ -34,7 +34,7 @@ module LLM
 
         # @param exporter [#export, nil] an exporter to use instead of OTLP, for tests
         # @param env [Hash]
-        # @param context [Hash] see {Tracker#initialize}
+        # @param context [Hash] see {Base#initialize}
         def initialize(exporter: nil, env: ENV, **context)
           super(**context)
           @env = env

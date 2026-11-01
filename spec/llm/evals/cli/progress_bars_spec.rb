@@ -23,7 +23,7 @@ RSpec.describe LLM::Evals::CLI::ProgressBars do
   describe ".labels" do
     let(:runs) do
       [["01-bookkeeping-cfo", "moonshotai/kimi-k3", "effort=low t=0.2"], ["clear", "fake/one", "effort=default t=default"]].map do |dataset, id, label|
-        instance_double(LLM::Evals::Experiment, dataset: dataset, model: instance_double(LLM::Evals::Model, id: id, label: label))
+        instance_double(LLM::Evals::Actions::Experiment, dataset: dataset, model: instance_double(LLM::Evals::Models::Model, id: id, label: label))
       end
     end
 

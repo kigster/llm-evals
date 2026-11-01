@@ -8,7 +8,7 @@ module LLM
           # One dataset's section of the page: one entry per experiment, and its cases.
           class DatasetSection
             # @param name [String]
-            # @param summaries [Array<Experiment::Summary>] the dataset's
+            # @param summaries [Array<Actions::Experiment::Summary>] the dataset's
             # @param ranking [Ranking]
             def initialize(name, summaries, ranking)
               @name = name

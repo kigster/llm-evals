@@ -8,17 +8,17 @@ RSpec.describe LLM::Evals::CLI::Leaderboard do
 
   describe "#glossary" do
     it "starts with the metrics and ends with the gem's columns" do
-      terms = leaderboard(LLM::Evals::Metric.new(name: "accuracy", description: "right")).glossary.map(&:first)
+      terms = leaderboard(LLM::Evals::Scoring::Metric.new(name: "accuracy", description: "right")).glossary.map(&:first)
       expect(terms.first).to eq("accuracy")
       expect(terms).to include("cost", "score")
     end
 
     it "marks a metric without a description" do
-      expect(leaderboard(LLM::Evals::Metric.new(name: "bare")).glossary.first).to eq(["bare", "(no description)"])
+      expect(leaderboard(LLM::Evals::Scoring::Metric.new(name: "bare")).glossary.first).to eq(["bare", "(no description)"])
     end
 
     it "lets a metric take over a column's name" do
-      terms = leaderboard(LLM::Evals::Metric.new(name: "cost", description: "mine")).glossary
+      terms = leaderboard(LLM::Evals::Scoring::Metric.new(name: "cost", description: "mine")).glossary
       expect(terms.count { it.first == "cost" }).to eq(1)
     end
   end

@@ -4,12 +4,12 @@ RSpec.describe LLM::Evals::CLI::TrackerResolver do
   subject(:resolver) { described_class.new(configuration:, config:, options:, err:, env:) }
 
   let(:remote_class) do
-    Class.new(LLM::Evals::Tracker) do
+    Class.new(LLM::Evals::Trackers::Base) do
       def self.tracker_name = "remote"
     end
   end
   let(:registry) { instance_double(LLM::Evals::Trackers::Registry, choose: [remote_class, "--tracker"]) }
-  let(:configuration) { instance_double(LLM::Evals::Configuration, trackers: registry, name: "suite", project: "suite-project") }
+  let(:configuration) { instance_double(LLM::Evals::Runtime::Configuration, trackers: registry, name: "suite", project: "suite-project") }
   let(:config) { instance_double(LLM::Evals::Config, tracker: nil, project: "lineup-project", tracker_options: { "a" => 1 }) }
   let(:options) { {} }
   let(:err) { StringIO.new }

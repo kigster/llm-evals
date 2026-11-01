@@ -9,9 +9,9 @@ module LLM
         class JSON
           # Completed runs into the snapshot's document. {Decoder} reads it back.
           class Encoder
-            # @param summaries [Array<Experiment::Summary>]
-            # @param metrics [Array<Metric>]
-            # @param weighted_score [WeightedScore, nil]
+            # @param summaries [Array<Actions::Experiment::Summary>]
+            # @param metrics [Array<Scoring::Metric>]
+            # @param weighted_score [Scoring::WeightedScore, nil]
             # @param run_options [Hash]
             # @param suite [String]
             def initialize(summaries, metrics:, weighted_score:, run_options:, suite:)
@@ -32,7 +32,7 @@ module LLM
                 run_options:  plain(@run_options),
                 metrics:      @metrics.map { { name: it.name, description: it.description, aggregate: it.aggregate, primary: it.primary } },
                 weights:      @weighted_score&.weights,
-                call_stats:   CallStats.for_run(@summaries, @run_options).rows.map(&:to_h),
+                call_stats:   Stats::CallStats.for_run(@summaries, @run_options).rows.map(&:to_h),
                 summaries:    @summaries.map { summary(it) }
               )
             end

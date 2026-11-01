@@ -11,7 +11,7 @@ RSpec.describe LLM::Evals::Trackers::Logfire do
   let(:configuration) { LLM::Evals.configuration }
   let(:model) { LLM::Evals::Testing::FakeModel.new(junk: ["vague/002"], settings: { effort: "low", temperature: 0.3, max_tokens: 99 }) }
   let(:experiment) do
-    LLM::Evals::Experiment.new(model: model,
+    LLM::Evals::Actions::Experiment.new(model: model,
       cases: configuration.discovery.cases(dataset: "colors"),
       adapter: configuration.adapter,
       scorer: configuration.scorer,
@@ -128,7 +128,7 @@ RSpec.describe LLM::Evals::Trackers::Logfire do
   end
 
   it "truncates long diagnostics" do
-    long = LLM::Evals::Score.new(value: 0.0, metrics: {}, diagnostics: { "x" => "y" * 5000 })
+    long = LLM::Evals::Results::Score.new(value: 0.0, metrics: {}, diagnostics: { "x" => "y" * 5000 })
     allow(configuration.scorer).to receive(:call).and_return(long)
     experiment.run
     expect(children.first.attributes["evals.diagnostics"].bytesize).to eq(described_class::DIAGNOSTICS_LIMIT + 3)

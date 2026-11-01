@@ -2,14 +2,14 @@
 
 RSpec.describe LLM::Evals::Render::Reports::JSON do
   let(:providers) { LLM::Evals.configuration.providers }
-  let(:model) { LLM::Evals::Model.new(id: "fake/echo", provider: providers.for("fake/echo"), settings: { effort: "low" }) }
+  let(:model) { LLM::Evals::Models::Model.new(id: "fake/echo", provider: providers.for("fake/echo"), settings: { effort: "low" }) }
   let(:experiment) { LLM::Evals::Render::Reports::JSON::SavedExperiment.new(model:) }
-  let(:kase) { LLM::Evals::Case.new(id: "clear/001", dataset: "colors", variant: "clear", input: "i", expected: { "a" => 1 }, path: "/p", metadata: { number: 1 }) }
-  let(:score) { LLM::Evals::Score.new(value: 0.5, metrics: { "accuracy" => 0.5 }, outcomes: { "a" => true }, diagnostics: { "d" => "x" }) }
-  let(:reply) { LLM::Evals::Reply.new(output: { "a" => 1 }, raw: "raw", usage: { input_tokens: 1, output_tokens: 2, cost_usd: 0.5 }, error: nil, metadata: { "m" => 1 }) }
-  let(:scored) { LLM::Evals::RunResult.new(experiment:, case: kase, reply:, score:, duration: 0.25) }
+  let(:kase) { LLM::Evals::Datasets::Case.new(id: "clear/001", dataset: "colors", variant: "clear", input: "i", expected: { "a" => 1 }, path: "/p", metadata: { number: 1 }) }
+  let(:score) { LLM::Evals::Results::Score.new(value: 0.5, metrics: { "accuracy" => 0.5 }, outcomes: { "a" => true }, diagnostics: { "d" => "x" }) }
+  let(:reply) { LLM::Evals::Results::Reply.new(output: { "a" => 1 }, raw: "raw", usage: { input_tokens: 1, output_tokens: 2, cost_usd: 0.5 }, error: nil, metadata: { "m" => 1 }) }
+  let(:scored) { LLM::Evals::Results::RunResult.new(experiment:, case: kase, reply:, score:, duration: 0.25) }
   let(:summary) do
-    LLM::Evals::Experiment::Summary.new(model:,
+    LLM::Evals::Actions::Experiment::Summary.new(model:,
       dataset: "colors",
       name: "exp",
       means: { "accuracy" => 0.5 },
@@ -19,9 +19,9 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
       permalink: "http://x",
       usage: reply.usage)
   end
-  let(:metric) { LLM::Evals::Metric.new(name: "accuracy", description: "right", primary: true) }
+  let(:metric) { LLM::Evals::Scoring::Metric.new(name: "accuracy", description: "right", primary: true) }
 
-  def failed = LLM::Evals::RunResult.new(experiment:, case: kase, reply: nil, score: nil, duration: 0.5, error: "boom")
+  def failed = LLM::Evals::Results::RunResult.new(experiment:, case: kase, reply: nil, score: nil, duration: 0.5, error: "boom")
 
   def encode(weighted_score: nil, run_options: { effective: { tracker: :none, list: [:a] } })
     LLM::Evals::Render::Reports::JSON::Encoder.new([summary], metrics: [metric], weighted_score:, run_options:, suite: "suite").call
@@ -45,7 +45,7 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
     end
 
     it "writes the weights when there are some" do
-      weighted = LLM::Evals::WeightedScore.new({ "accuracy" => 1 }, metrics: ["accuracy"])
+      weighted = LLM::Evals::Scoring::WeightedScore.new({ "accuracy" => 1 }, metrics: ["accuracy"])
       expect(JSON.parse(encode(weighted_score: weighted))["weights"]).to eq("accuracy" => 1)
     end
   end
@@ -74,7 +74,7 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
     end
 
     it "rebuilds the weights" do
-      weighted = LLM::Evals::WeightedScore.new({ "accuracy" => 1 }, metrics: ["accuracy"])
+      weighted = LLM::Evals::Scoring::WeightedScore.new({ "accuracy" => 1 }, metrics: ["accuracy"])
       expect(decode(encode(weighted_score: weighted)).weighted_score.weights).to eq("accuracy" => 1)
     end
 

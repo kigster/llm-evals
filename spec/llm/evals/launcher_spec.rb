@@ -7,7 +7,7 @@ RSpec.describe LLM::Evals::Launcher do
   let(:stderr) { StringIO.new }
   let(:kernel) { class_double(Kernel, exit: nil) }
   let(:configuration) { LLM::Evals.configuration }
-  let(:runtime) { instance_double(LLM::Evals::Runtime, setup!: nil, browse: true) }
+  let(:runtime) { instance_double(LLM::Evals::Runtime::Environment, setup!: nil, browse: true) }
 
   before { allow(configuration).to receive(:runtime).and_return(runtime) }
 
@@ -74,7 +74,7 @@ RSpec.describe LLM::Evals::Launcher do
   context "with verify over a broken suite" do
     let(:argv) { ["verify"] }
 
-    before { allow(LLM::Evals::Verify).to receive(:new).and_return(instance_double(LLM::Evals::Verify, problems: { "colors/clear/001" => ["bad"] })) }
+    before { allow(LLM::Evals::Actions::Verify).to receive(:new).and_return(instance_double(LLM::Evals::Actions::Verify, problems: { "colors/clear/001" => ["bad"] })) }
 
     it "exits 1 and names the case" do
       run_cli
@@ -434,7 +434,7 @@ RSpec.describe LLM::Evals::Launcher do
     let(:json_path) { File.join(dir, "results.json") }
     let(:html_path) { File.join(dir, "report.html") }
     let(:argv) { ["render", json_path, "-o", html_path] }
-    let(:render_runtime) { instance_double(LLM::Evals::Runtime, setup!: nil, browse: true) }
+    let(:render_runtime) { instance_double(LLM::Evals::Runtime::Environment, setup!: nil, browse: true) }
 
     before do
       allow(Dry::CLI::UI::Invocation).to receive(:root).and_return(dir)
@@ -799,7 +799,7 @@ RSpec.describe LLM::Evals::Launcher do
     let(:argv) { %w[compare --local --no-open -m fake/echo -d colors] }
 
     before do
-      metric = LLM::Evals::Metric.new(name: "score", description: "The scorer's own score.", primary: true)
+      metric = LLM::Evals::Scoring::Metric.new(name: "score", description: "The scorer's own score.", primary: true)
       allow(configuration.scorer).to receive(:metrics).and_return([metric])
     end
 
@@ -918,7 +918,7 @@ RSpec.describe LLM::Evals::Launcher do
 
   context "with a config-only suite" do
     let(:argv) { ["cases"] }
-    let(:fresh) { LLM::Evals::Configuration.new }
+    let(:fresh) { LLM::Evals::Runtime::Configuration.new }
 
     before { allow(LLM::Evals).to receive(:configuration).and_return(fresh) }
 
@@ -949,7 +949,7 @@ RSpec.describe LLM::Evals::Launcher do
   context "without a suite" do
     let(:argv) { ["cases"] }
 
-    before { allow(LLM::Evals).to receive(:configuration).and_return(LLM::Evals::Configuration.new) }
+    before { allow(LLM::Evals).to receive(:configuration).and_return(LLM::Evals::Runtime::Configuration.new) }
 
     it { run_cli && expect(stderr.string).to(include("no suite is configured")) }
   end

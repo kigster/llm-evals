@@ -10,9 +10,9 @@ module TmpSuite
     File.join(dir, "evals")
   end
 
-  # @return [LLM::Evals::Configuration] the toy suite's pieces over another root
-  def configuration_for(root, cases: LLM::Evals::Configuration::DEFAULT_GLOB)
-    LLM::Evals::Configuration.new.tap do |c|
+  # @return [LLM::Evals::Runtime::Configuration] the toy suite's pieces over another root
+  def configuration_for(root, cases: LLM::Evals::Runtime::Configuration::DEFAULT_GLOB)
+    LLM::Evals::Runtime::Configuration.new.tap do |c|
       c.suite "copy", root: root
       c.cases cases
       c.adapter LLM::Evals.configuration.adapter

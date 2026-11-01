@@ -17,7 +17,7 @@ RSpec.describe LLM::Evals::CLI::ReportDispatcher do
     let(:said) { [] }
     let(:saved) { [] }
     let(:status) { ->(level, text) { said << [level, text] } }
-    let(:browser) { instance_double(LLM::Evals::Runtime, browse: false) }
+    let(:browser) { instance_double(LLM::Evals::Runtime::Environment, browse: false) }
 
     it "names a written file relative to the working directory" do
       console.written("JSON report", File.join(Dir.pwd, "log", "a.json"))

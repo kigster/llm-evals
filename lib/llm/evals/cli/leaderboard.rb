@@ -6,7 +6,7 @@ module LLM
       # The terminal summary of a run: one row per experiment, the glossary, the
       # selected totals view, and the winners. Every column that is not a metric
       # is the gem's; the metric columns, their glossary and the ranking come
-      # from the suite's {Scorer#metrics}.
+      # from the suite's {Scoring::Scorer#metrics}.
       class Leaderboard
         include Formatting
 
@@ -44,7 +44,7 @@ module LLM
         # file sets weights; the glossary; the selected totals view; with
         # scores, every experiment by score; and, last, the winners.
         #
-        # @param summaries [Array<Experiment::Summary>]
+        # @param summaries [Array<Actions::Experiment::Summary>]
         # @param scores [Boolean] also print every experiment by score
         # @param totals_mode [String] `overall`, `variant` or `both`
         # @return [void]
@@ -159,9 +159,9 @@ module LLM
         # the color of its progress bars.
         #
         # @param title [String]
-        # @param summaries [Array<Experiment::Summary>]
+        # @param summaries [Array<Actions::Experiment::Summary>]
         # @param label [String] the name of what the block reads
-        # @yieldparam summary [Experiment::Summary]
+        # @yieldparam summary [Actions::Experiment::Summary]
         # @yieldreturn [Float]
         def winners(title, summaries, label)
           return if summaries.empty?

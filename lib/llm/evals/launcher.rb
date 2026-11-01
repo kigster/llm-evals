@@ -21,8 +21,8 @@ module LLM
 
       # dry-cli exits by itself after help or a usage error; its status is kept.
       def run
-        argv, helper = Helper.extract(@argv)
-        Helper.load!(Helper.locate(helper))
+        argv, helper = Runtime::Helper.extract(@argv)
+        Runtime::Helper.load!(Runtime::Helper.locate(helper))
         Dry::CLI.new(CLI).call(arguments: argv, out: @stdout, err: @stderr)
         0
       rescue SystemExit => e

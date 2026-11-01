@@ -15,11 +15,11 @@ module ToySuite
     # Compares each expected field with the reply's, exactly. A null in the
     # expected answer means the text never said, and the right reply leaves
     # it null; `restraint` is how often the model did, on the cases that have one.
-    class Scorer < LLM::Evals::Scorer
+    class Scorer < LLM::Evals::Scoring::Scorer
       METRICS = [
-        LLM::Evals::Metric.new(name: "field_accuracy", description: "Share of expected fields the reply matched exactly.", primary: true),
-        LLM::Evals::Metric.new(name: "exact_match", description: "1 when every field matched."),
-        LLM::Evals::Metric.new(name: "restraint",
+        LLM::Evals::Scoring::Metric.new(name: "field_accuracy", description: "Share of expected fields the reply matched exactly.", primary: true),
+        LLM::Evals::Scoring::Metric.new(name: "exact_match", description: "1 when every field matched."),
+        LLM::Evals::Scoring::Metric.new(name: "restraint",
           description: "Of the fields expected null, the share left null; " \
                        "nothing recorded when no field is null.")
       ].freeze
@@ -31,7 +31,7 @@ module ToySuite
         hits = kase.expected.to_h { |field, want| [field, output[field] == want ? 1.0 : 0.0] }
         open = kase.expected.select { |_, want| want.nil? }.keys
         wrong = hits.select { |_, hit| hit.zero? }.to_h { |field, _| [field, { want: kase.expected[field], got: output[field] }] }
-        LLM::Evals::Score.new(
+        LLM::Evals::Results::Score.new(
           value:       hits.values.sum / hits.size,
           metrics:     { "field_accuracy" => hits.values.sum / hits.size,
                          "exact_match"    => hits.values.all?(1.0) ? 1.0 : 0.0,

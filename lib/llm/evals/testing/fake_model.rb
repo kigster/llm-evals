@@ -3,9 +3,9 @@
 module LLM
   module Evals
     module Testing
-      # A {Model} on a {FakeProvider} of its own, for specs that run an
-      # adapter or an {Experiment} without the CLI.
-      class FakeModel < Model
+      # A {Models::Model} on a {FakeProvider} of its own, for specs that run an
+      # adapter or an {Actions::Experiment} without the CLI.
+      class FakeModel < Models::Model
         # @param id [String]
         # @param settings [Hash]
         # @param provider_options [Hash] passed to {FakeProvider#initialize}

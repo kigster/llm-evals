@@ -8,7 +8,7 @@ module LLM
       class ContenderSelector
         # @param config [Config]
         # @param providers [Providers::Registry]
-        # @param warnings [Warnings] records each refusal
+        # @param warnings [Results::Warnings] records each refusal
         def initialize(config:, providers:, warnings:)
           @config = config
           @providers = providers
@@ -17,7 +17,7 @@ module LLM
 
         # @param models [Array<String>] as given to -m, possibly comma-separated
         # @param options [Hash] the parsed flags, whose settings override the lineup's
-        # @return [Array<Contender>]
+        # @return [Array<Models::Contender>]
         # @raise [Error] when nothing names a model, or none is admitted
         def call(models, options)
           named = models.flat_map { it.split(",") }

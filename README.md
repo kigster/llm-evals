@@ -257,7 +257,7 @@ require "bundler/setup"
 require "llm/evals"
 require "my_gem"
 
-class MyAdapter < LLM::Evals::Adapter
+class MyAdapter < LLM::Evals::Actions::Adapter
   # Once per dataset, outside the threads.
   def prepare(dataset) = @schema = MyGem.schema_for(dataset)
 
@@ -267,10 +267,10 @@ class MyAdapter < LLM::Evals::Adapter
     
     # The production parser, so scores reflect production.
     output = MyGem.parse(completion.text)
-    LLM::Evals::Reply.new(output: output, raw: completion.text, usage: completion.usage)
+    LLM::Evals::Results::Reply.new(output: output, raw: completion.text, usage: completion.usage)
   rescue MyGem::NotJSON => e
     # The model's failure: scored 0.
-    LLM::Evals::Reply.new(error: e.message, raw: completion&.text)
+    LLM::Evals::Results::Reply.new(error: e.message, raw: completion&.text)
   end
 
   # What the scorer needs beyond the case.
@@ -280,19 +280,19 @@ class MyAdapter < LLM::Evals::Adapter
   def verify(dataset) = MyGem.schema_problems(dataset)
 end
 
-class MyScorer < LLM::Evals::Scorer
+class MyScorer < LLM::Evals::Scoring::Scorer
   def metrics
     [
-      LLM::Evals::Metric.new(
+      LLM::Evals::Scoring::Metric.new(
         name: "field_accuracy",
         description: "Mean per-field score.",
         primary: true
       ),
-      LLM::Evals::Metric.new(
+      LLM::Evals::Scoring::Metric.new(
         name: "exact_match",
         description: "1 when every field is right."
       ),
-      LLM::Evals::Metric.new(
+      LLM::Evals::Scoring::Metric.new(
         name: "restraint",
         description: "Of the fields the text never answers, the share left null."
       )
@@ -304,7 +304,7 @@ class MyScorer < LLM::Evals::Scorer
     mean = scores.values.sum / scores.size
     misses = scores.reject { |_, v| v == 1.0 }.keys
 
-    LLM::Evals::Score.new(
+    LLM::Evals::Results::Score.new(
       value: mean,
       metrics: {
         "field_accuracy" => mean,
@@ -319,7 +319,7 @@ class MyScorer < LLM::Evals::Scorer
   end
 
   def verify(kase, context:)
-    LLM::Evals::SchemaValidator.new(context[:schema]).problems(kase.expected)
+    LLM::Evals::Scoring::SchemaValidator.new(context[:schema]).problems(kase.expected)
   end
 
   def summary(kase) = "#{kase.expected.count { |_, v| !v.nil? }}/#{kase.expected.size} answered"
@@ -550,7 +550,7 @@ Logfire has no Ruby gem of its own. It is an OTLP backend for the standard OpenT
 A tracker is a class with three callbacks. Register it with `c.tracker` in the helper (or in a plugin gem loaded through `require:`), then choose it by name:
 
 ```ruby
-class Weave < LLM::Evals::Tracker
+class Weave < LLM::Evals::Trackers::Base
   # Selects it when set and nothing else is chosen.
   def self.env_key = "WANDB_API_KEY"
 
@@ -653,7 +653,7 @@ class Ollama < LLM::Evals::Providers::Base
       Net::HTTP.post(URI("#{HOST}/api/generate"), JSON.generate(body)).body
     )
 
-    LLM::Evals::Completion.new(
+    LLM::Evals::Results::Completion.new(
       text: response.fetch("response"),
       usage: {
         input_tokens: response["prompt_eval_count"],

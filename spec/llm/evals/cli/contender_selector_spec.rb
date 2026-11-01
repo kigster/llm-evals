@@ -6,9 +6,9 @@ RSpec.describe LLM::Evals::CLI::ContenderSelector do
   subject(:selector) { described_class.new(config:, providers:, warnings:) }
 
   let(:config) { instance_double(LLM::Evals::Config, path: "lineup.yml", request_types: [:text], contenders: [], contenders_for: [contender]) }
-  let(:contender) { instance_double(LLM::Evals::Contender) }
+  let(:contender) { instance_double(LLM::Evals::Models::Contender) }
   let(:providers) { instance_double(LLM::Evals::Providers::Registry, for: nil, admit: [[contender], []]) }
-  let(:warnings) { LLM::Evals::Warnings.new }
+  let(:warnings) { LLM::Evals::Results::Warnings.new }
 
   it "splits -m on commas and passes the setting flags" do
     selector.call(["a/b,c/d"], effort: "low")

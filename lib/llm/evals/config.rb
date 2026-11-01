@@ -25,11 +25,11 @@ module LLM
     #     destination: ./evals/results/
     #     temp_dir: ./tmp           # temporary JSON used when autosave is off
     #     display: browser          # none, tui or browser
-    #   errors:                      # optional: when to give up; see {ErrorBudget}
+    #   errors:                      # optional: when to give up; see {Actions::ErrorBudget}
     #     abort_after:
     #       total: 1000
     #       percent: 60
-    #   weighted_score:              # optional: what matters most; see {WeightedScore}
+    #   weighted_score:              # optional: what matters most; see {Scoring::WeightedScore}
     #     weights:
     #       score: 0.6
     #       cost: -0.4
@@ -48,7 +48,7 @@ module LLM
     #
     # An entry under `vendors:` becomes "<vendor>/<model>", the id a provider
     # recognises; one under `models:` becomes the provider's prefix and the name.
-    # A call waits on every `rate_limit` that matches it; see {Throttle}.
+    # A call waits on every `rate_limit` that matches it; see {Models::Throttle}.
     class Config
       # The request types a suite may declare. `prompt` is a chat completion:
       # system and user text in, text out. `typesafe` is TypeSafe's typed
@@ -136,13 +136,13 @@ module LLM
       # @raise [Error] when a setting has the wrong type or an unknown display
       def results = Results.from_hash(@data.fetch("results", {}), path:)
 
-      # @return [Hash{String => Object}] `weighted_score.weights`; see {WeightedScore}
+      # @return [Hash{String => Object}] `weighted_score.weights`; see {Scoring::WeightedScore}
       # @raise [Error] when either level is not a mapping
       def score_weights = ScoreWeights.from_hash(@data["weighted_score"], path:)
 
-      # When to give up on a run; see {ErrorBudget}.
+      # When to give up on a run; see {Actions::ErrorBudget}.
       #
-      # @return [ErrorBudget, nil] nil when the file sets no limit
+      # @return [Actions::ErrorBudget, nil] nil when the file sets no limit
       # @raise [Error] on a limit that is missing or out of range
       def error_budget
         section = @data["errors"]
@@ -153,7 +153,7 @@ module LLM
       # the file's order.
       #
       # @param overrides [Hash{String => Object}] values from the command line; nil entries are ignored
-      # @return [Array<Contender>]
+      # @return [Array<Models::Contender>]
       # @raise [Error] on a section or entry the file format does not have
       def contenders(overrides = {})
         builder = ContenderBuilder.new(defaults:, overrides:)
@@ -165,15 +165,15 @@ module LLM
       # The file's `rate_limit`s, ready for calls. The same one every time, since
       # the limits only hold if every model of a run shares them.
       #
-      # @return [Throttle]
+      # @return [Models::Throttle]
       # @raise [Error] on a limit that is missing a number, out of range or set twice
-      def throttle = @throttle ||= Throttle.new(listing.limits)
+      def throttle = @throttle ||= Models::Throttle.new(listing.limits)
 
       # The models given on the command line, at the file's default settings.
       #
       # @param models [Array<String>] model ids
       # @param overrides [Hash{String => Object}]
-      # @return [Array<Contender>]
+      # @return [Array<Models::Contender>]
       def contenders_for(models, overrides = {})
         builder = ContenderBuilder.new(defaults:, overrides:)
         models.flat_map { builder.call(it) }
