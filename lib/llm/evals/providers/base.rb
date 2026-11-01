@@ -92,8 +92,9 @@ module LLM
         def retry_after(_error) = nil
 
         # @param contender [Contender]
+        # @param throttle [Throttle]
         # @return [Model]
-        def model_for(contender) = Model.new(id: contender.model, provider: self, settings: contender.settings)
+        def model_for(contender, throttle: Throttle.new) = Model.new(id: contender.model, provider: self, settings: contender.settings, throttle:)
 
         # Every id in `model_ids` the provider does not list.
         #

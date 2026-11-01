@@ -13,10 +13,12 @@ module LLM
       # @param id [String] the model id as the lineup names it, e.g. "anthropic/claude-haiku-5.5"
       # @param provider [Providers::Base] what answers {#complete}
       # @param settings [Hash{Symbol => Object}] effort, temperature, max_tokens; nil leaves the model's default
-      def initialize(id:, provider:, settings: {})
+      # @param throttle [Throttle] what every call passes through; share one to share its limits
+      def initialize(id:, provider:, settings: {}, throttle: Throttle.new)
         @id = id
         @provider = provider
         @settings = settings.transform_keys(&:to_sym).freeze
+        @throttle = throttle
       end
 
       # @return [String, nil] reasoning effort; nil sends none
@@ -41,7 +43,7 @@ module LLM
       # @param json [Boolean] ask the provider for a JSON object reply where it supports that
       # @return [Completion]
       def complete(user:, system: nil, json: true)
-        LLM::Evals.configuration.throttle.call(self) { provider.complete(self, system: system, user: user, json: json) }
+        @throttle.call(self) { provider.complete(self, system: system, user: user, json: json) }
       end
 
       # One request of typed questions, for a provider of request type `typesafe`.

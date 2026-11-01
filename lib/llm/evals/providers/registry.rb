@@ -64,8 +64,9 @@ module LLM
         def keys_for(contenders) = used_by(contenders).flat_map(&:env_keys).uniq
 
         # @param contender [Contender]
+        # @param throttle [Throttle]
         # @return [Model]
-        def model_for(contender) = self.for(contender).model_for(contender)
+        def model_for(contender, throttle: Throttle.new) = self.for(contender).model_for(contender, throttle:)
 
         # One refused contender: who, and why.
         Refusal = Data.define(:contender, :reason) do
