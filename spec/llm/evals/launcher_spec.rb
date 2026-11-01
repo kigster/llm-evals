@@ -520,6 +520,14 @@ RSpec.describe LLM::Evals::Launcher do
     end
   end
 
+  context "with compare and call stats" do
+    let(:argv) { %w[compare -m fake/a,fake/b --local --no-open -j 1] }
+
+    it "lists calls by provider, vendor and model" do
+      expect(run_cli).to include("calls by provider", "req/s", "p95", "fake/a")
+    end
+  end
+
   context "with an error limit in the lineup" do
     let(:dir) { Dir.mktmpdir }
     let(:lineup) { File.join(dir, "lineup.yml") }

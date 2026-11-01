@@ -15,6 +15,14 @@ RSpec.describe LLM::Evals::WeightedScore do
   end
 
   describe "#call" do
+    context "with latency, which is better low" do
+      let(:weights) { { "latency" => -1 } }
+
+      it "places it on a log scale within the group" do
+        expect(weighted.call([{ "latency" => 1.0 }, { "latency" => 100.0 }])).to eq([1.0, 0.0])
+      end
+    end
+
     it "uses a metric as it is under a positive weight" do
       expect(weighted.call([{ "score" => 0.9 }])).to eq([0.9])
     end
