@@ -11,10 +11,6 @@ module LLM
         # without repeating model calls or depending on the original case files.
         class JSON
           FORMAT = "llm-evals-report"
-          # Reports saved before the gem was renamed from agent-evals are the same
-          # document under the old name, and they can't be regenerated without
-          # paying for the model calls again.
-          READABLE_FORMATS = [FORMAT, "agent-evals-report"].freeze
           VERSION = 1
           Loaded = Data.define(:suite, :generated_at, :run_options, :summaries, :metrics, :weighted_score)
           SavedExperiment = Data.define(:model)
@@ -53,7 +49,7 @@ module LLM
           # @raise [Error] for an unknown format/version or provider
           def self.decode(source, providers:)
             document = ::JSON.parse(source)
-            unless READABLE_FORMATS.include?(document["format"]) && document["version"] == VERSION
+            unless document["format"] == FORMAT && document["version"] == VERSION
               raise Error, "unsupported report format version (expected #{FORMAT} v#{VERSION})"
             end
 

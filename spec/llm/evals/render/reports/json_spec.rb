@@ -54,11 +54,6 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
       expect(parsed.summaries.first.usage.cost_usd).to eq(0.001)
     end
 
-    it "still reads a report saved under the gem's old name" do
-      legacy = described_class.dump([summary], metrics: [metric]).sub("llm-evals-report", "agent-evals-report")
-      expect(described_class.load(legacy, providers: LLM::Evals.configuration.providers).summaries.size).to eq(1)
-    end
-
     it "rejects an unsupported report format version" do
       expect { described_class.load('{"format":"llm-evals-report","version":9}', providers: LLM::Evals.configuration.providers) }
         .to raise_error(LLM::Evals::Error, /unsupported report format version/)
