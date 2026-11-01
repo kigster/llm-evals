@@ -44,6 +44,15 @@ module LLM
         LLM::Evals.configuration.throttle.call(self) { provider.complete(self, system: system, user: user, json: json) }
       end
 
+      # One request of typed questions, for a provider of request type `typesafe`.
+      #
+      # @param state [Object]
+      # @param questions [Hash{String => Hash}]
+      # @return [Completion]
+      def ask(state:, questions:)
+        LLM::Evals.configuration.throttle.call(self) { provider.ask(self, state: state, questions: questions) }
+      end
+
       # @return [String] e.g. "effort=low t=0.2"
       def label
         "effort=#{effort || "default"} t=#{temperature.nil? ? "default" : temperature}"

@@ -75,6 +75,14 @@ module LLM
           raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Completion"
         end
 
+        # @param model [Model]
+        # @param state [Object]
+        # @param questions [Hash{String => Hash}]
+        # @return [Completion]
+        def ask(model, state:, questions:)
+          raise NotImplementedError, "#{self.class} does not answer typed questions"
+        end
+
         # @param error [StandardError] what a call raised
         # @return [Boolean] whether the same call may work later
         def retryable?(_error) = false
