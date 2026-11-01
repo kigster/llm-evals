@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "uri"
 
 module LLM
   module Evals
@@ -228,11 +227,7 @@ module LLM
         end
 
         # Prints what the block writes, then the leaderboard, its glossary and
-        # the scores; then says where the warnings went, if any, and opens the
-        # best-scoring experiment.
-        #
-        # Saves or renders through {Render::Reports::Pipeline}; the configured
-        # display and autosave policy are independent of model execution.
+        # the scores, when the run's display is the terminal; see {ReportDispatcher}.
         #
         # @param summaries [Array<Experiment::Summary>]
         # @param output [String, nil] what -o was given: nil, "-", "" for the default file, or a path
@@ -241,67 +236,26 @@ module LLM
         # @param format [String] `tui`, `html` or `json`
         # @return [void]
         def report(summaries, config:, options:, run_options:, output:, open:, scores: false, format: nil, &details)
-          results = effective_results(config, options)
-          results[:display] = { "tui" => "tui", "none" => "none", "html" => "browser", "json" => "none" }.fetch(format, results[:display]) if format
-          snapshot_options = run_options.merge(results:)
-          pipeline = render_pipeline(results, run_options)
-
-          if format == "html"
-            json_path = if results[:autosave]
-                          pipeline.save_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options)
-                        end
-            json = if json_path
-                     File.read(json_path)
-                   else
-                     pipeline.write_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options, path: nil)
-                   end
-            if json_path
-              status_box(:success, "JSON results written to #{relative(json_path)}", stream: err)
-            end
-            path = report_output_path(output, "html", pipeline)
-            document = pipeline.write_html(json:, path:)
-            path ? status_box(:success, "HTML report written to #{relative(path)}", stream: err) : out.write(document)
-            save_warnings
-            if open && path
-              url = URI::DEFAULT_PARSER.escape("file://#{path}")
-              status_box(:warning, "could not open #{path}", stream: err) unless configuration.runtime.browse(url)
-            end
-            return
-          end
-          if format == "json"
-            if output.nil? || output.empty?
-              path = pipeline.save_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options)
-              status_box(:success, "JSON report written to #{relative(path)}", stream: err)
-            else
-              path = report_output_path(output, "json", pipeline)
-              document = pipeline.write_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options, path:)
-              path ? status_box(:success, "JSON report written to #{relative(path)}", stream: err) : out.write(document)
-            end
-            save_warnings
-            return
-          end
-
-          result = pipeline.call(summaries:,
-            metrics:,
-            weighted_score: @weighted,
-            run_options: snapshot_options,
-            autosave: results[:autosave],
-            display: results[:display],
-            open:) do |report|
+          report_dispatcher(config, options).call(summaries, metrics:, weighted_score: @weighted, run_options:, output:, open:, format:) do |report|
             @report_metrics = report.metrics
             @weighted = report.weighted_score
             terminal_report(report.summaries, output:, open:, scores:, totals_mode: options[:totals], run_options:) do |shown|
               details&.call(shown)
             end
           end
-          if result.json_path
-            status_box(:success, "JSON results written to #{relative(result.json_path)}", stream: err)
-          end
-          if result.html_path
-            status_box(:success, "HTML report written to #{relative(result.html_path)}", stream: err)
-            status_box(:warning, "could not open #{result.html_path}", stream: err) if open && !result.browser_opened
-          end
-          save_warnings unless results[:display] == "tui"
+        end
+
+        def report_dispatcher(config, options)
+          ReportDispatcher.new(config:,
+            options:,
+            providers:,
+            runtime: configuration.runtime,
+            suite: configuration.name,
+            invocation:,
+            console: ReportDispatcher::Console.new(out:,
+              browser: configuration.runtime,
+              save_warnings: method(:save_warnings),
+              status: ->(level, text) { status_box(level, text, stream: err) }))
         end
 
         def terminal_report(summaries, output:, open:, scores:, totals_mode:, run_options:, &details)
@@ -315,32 +269,6 @@ module LLM
           save_warnings
           url = summaries.max_by { it.score || -1 }&.permalink
           status_box(:warning, "could not open #{url}", stream: err) if open && url && !configuration.runtime.browse(url)
-        end
-
-        def effective_results(config, options)
-          configured = config.results
-          {
-            autosave:    options[:autosave].nil? ? configured.autosave : options[:autosave],
-            destination: File.expand_path(options[:destination] || configured.destination),
-            temp_dir:    File.expand_path(options[:temp_dir] || configured.temp_dir),
-            display:     options[:display] || configured.display_mode
-          }
-        end
-
-        def render_pipeline(results, run_options)
-          project = run_options.dig(:effective, :project) || run_options.dig("effective", "project") || configuration.name
-          LLM::Evals::Render::Reports::Pipeline.new(providers:,
-            runtime: configuration.runtime,
-            destination: results[:destination],
-            temp_dir: results[:temp_dir],
-            project:)
-        end
-
-        def report_output_path(output, extension, pipeline)
-          return nil if output == "-"
-          return pipeline.report_path(File.dirname(invocation.report_path("")), extension) if output.nil? || output.empty?
-
-          invocation.report_path(output).sub(/\.log\z/, ".#{extension}")
         end
 
         # Saves {#warnings}, if there are any, to
