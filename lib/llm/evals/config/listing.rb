@@ -11,6 +11,10 @@ module LLM
         VENDOR_KEYS = %w[rate_limit models].freeze
         ENTRY_KEYS = %w[model effort temperature max_tokens rate_limit].freeze
 
+        # What marks a mapping as meant for a provider, under any name. Other
+        # mappings belong to trackers and suites, so they are left alone.
+        MARKERS = %w[vendors models model rate_limit].freeze
+
         # One line under `models:`.
         Entry = Data.define(:provider, :id, :settings)
 
@@ -43,7 +47,7 @@ module LLM
 
           names = providers.map(&:name)
           data.filter_map do |name, section|
-            next unless section.is_a?(Hash) && section.keys.intersect?(%w[vendors models])
+            next unless section.is_a?(Hash) && (names.include?(name.to_s) || section.keys.intersect?(MARKERS))
             raise Error, "#{path}: unknown provider #{name.inspect}; known: #{names.join(", ")}" unless names.include?(name.to_s)
 
             known!(name, section, SECTION_KEYS)

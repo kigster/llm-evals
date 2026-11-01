@@ -15,4 +15,9 @@ RSpec.describe LLM::Evals::Providers::Base do
     model = LLM::Evals::Model.new(id: "x", provider: provider)
     expect { model.complete(user: "x") }.to raise_error(NotImplementedError, /Completion/)
   end
+
+  it "answers no typed questions by default" do
+    provider = Class.new(described_class).new
+    expect { provider.ask(nil, state: "s", questions: {}) }.to raise_error(NotImplementedError, /does not answer typed questions/)
+  end
 end
