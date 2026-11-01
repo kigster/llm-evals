@@ -71,11 +71,11 @@ RSpec.describe LLM::Evals::CLI::Command do
 
   describe "#wrap" do
     it "breaks at spaces within the width and keeps its own line breaks" do
-      expect(command.send(:wrap, "aa bb cc\ndd", 5)).to eq("aa bb\ncc\ndd")
+      expect(LLM::Evals::CLI::Text.wrap("aa bb cc\ndd", 5)).to eq("aa bb\ncc\ndd")
     end
 
     it "cuts a word longer than the width" do
-      expect(command.send(:wrap, "abcdefgh", 3)).to eq("abc\ndef\ngh")
+      expect(LLM::Evals::CLI::Text.wrap("abcdefgh", 3)).to eq("abc\ndef\ngh")
     end
   end
 
@@ -89,8 +89,10 @@ RSpec.describe LLM::Evals::CLI::Command do
     end
   end
 
-  describe "#cases_for" do
-    it { expect(command.send(:cases_for, ["clear"], dataset: "colors").size).to eq(2) }
-    it { expect { command.send(:cases_for, ["nope"], dataset: "colors") }.to raise_error(LLM::Evals::Error, /no cases match nope in colors/) }
+  describe "the discovery's #cases!" do
+    let(:discovery) { LLM::Evals.configuration.discovery }
+
+    it { expect(discovery.cases!(only: ["clear"], dataset: "colors").size).to eq(2) }
+    it { expect { discovery.cases!(only: ["nope"], dataset: "colors") }.to raise_error(LLM::Evals::Error, /no cases match/) }
   end
 end

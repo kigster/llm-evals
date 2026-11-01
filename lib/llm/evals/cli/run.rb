@@ -17,30 +17,9 @@ module LLM
           "-n                                             # show what would run, call nothing"
         ]
 
-        def call(models:, dataset:, dry_run:, **options)
-          config = lineup(options)
-          weigh(config)
-          contenders = contenders(config, models, options)
-          datasets = datasets(dataset)
-          return matrix(datasets, contenders) if dry_run
-
-          setup!(contenders, options)
-          runs = datasets.flat_map { |name| contenders.map { experiment(it, config, options, dataset: name) } }
-          outcome = execute(runs, concurrency: concurrency(options), budget: config.error_budget)
-          report(outcome.summaries,
-            output:      options[:output],
-            open:        options[:open],
-            scores:      options[:scores],
-            format:      options[:format],
-            config:,
-            options:,
-            run_options: serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds: outcome.seconds)) do |display_summaries|
-            display_summaries.each { breakdown(it, titled: display_summaries.size > 1) }
-          end
-          abort_if_spent
-        end
-
         private
+
+        def details(summaries) = summaries.each { breakdown(it, titled: summaries.size > 1) }
 
         # One row per case: its score, and whatever the scorer diagnosed.
         def breakdown(summary, titled: false)

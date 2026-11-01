@@ -8,6 +8,10 @@ module LLM
       # exporter, the way `Braintrust::Eval.run` would have, except that the
       # loop stays ours. The gem is required only when this tracker is chosen.
       class Braintrust < Tracker
+        # @param env [#[]]
+        # @return [String, nil] the project BRAINTRUST_PROJECT_ID names
+        def self.project_id(env = ENV) = env["BRAINTRUST_PROJECT_ID"].to_s[/\S+/]
+
         def self.env_key = "BRAINTRUST_API_KEY"
         def self.gems = ["braintrust"]
 

@@ -59,10 +59,20 @@ module LLM
         "effort" => "default", "temperature" => 0.2, "max_tokens" => 4096, "parallelism" => 4
       }.freeze
 
-      Results = Data.define(:autosave, :destination, :temp_dir, :display_mode)
       RESULT_DISPLAYS = %w[none tui browser].freeze
 
       attr_reader :path, :providers
+
+      # Reads every section a run needs before anything is spent, so a bad one
+      # fails the run rather than the report at its end.
+      #
+      # @return [void]
+      # @raise [Error] on the first bad section
+      def validate!
+        results
+        error_budget
+        score_weights
+      end
 
       # @param path [String] read when it exists; an absent file is an empty lineup
       # @param providers [Providers::Registry] whose names the file's sections may use
@@ -122,66 +132,21 @@ module LLM
       # @return [Hash{String => Object}] the built-in defaults under the file's own
       def defaults = BUILTIN.merge(@data.fetch("defaults", nil) || {})
 
-      # Where completed runs are saved and how they are presented. Paths are
-      # rooted at the caller's working directory so the same config works from
-      # a project root or when invoked by a task runner.
-      #
       # @return [Results]
       # @raise [Error] when a setting has the wrong type or an unknown display
-      def results
-        section = @data.fetch("results", {})
-        raise Error, "#{path}: results must be a mapping" unless section.is_a?(Hash)
-
-        autosave = section.fetch("autosave", true)
-        unless [true, false].include?(autosave)
-          raise Error, "#{path}: results.autosave must be true or false"
-        end
-
-        display = section.fetch("display", "tui").to_s
-        unless RESULT_DISPLAYS.include?(display)
-          raise Error, "#{path}: results.display must be one of #{RESULT_DISPLAYS.join(", ")}"
-        end
-
-        destination = section.fetch("destination", "./evals/results").to_s
-        temp_dir = section.fetch("temp_dir", "./tmp").to_s
-        Results.new(autosave:,
-          destination: File.expand_path(destination, Dir.pwd),
-          temp_dir: File.expand_path(temp_dir, Dir.pwd),
-          display_mode: display)
-      end
+      def results = Results.from_hash(@data.fetch("results", {}), path:)
 
       # @return [Hash{String => Object}] `weighted_score.weights`; see {WeightedScore}
       # @raise [Error] when either level is not a mapping
-      def score_weights
-        section = @data["weighted_score"]
-        return {} if section.nil?
+      def score_weights = ScoreWeights.from_hash(@data["weighted_score"], path:)
 
-        weights = section["weights"] if section.is_a?(Hash)
-        raise Error, "#{path}: weighted_score needs a weights: mapping of column to number" unless weights.is_a?(Hash)
-
-        weights.transform_keys(&:to_s)
-      end
-
-      # When to give up on a run; see {ErrorBudget}. Both limits must be met, and
-      # `percent` needs `total`, since one failed first call is already 100%.
+      # When to give up on a run; see {ErrorBudget}.
       #
       # @return [ErrorBudget, nil] nil when the file sets no limit
       # @raise [Error] on a limit that is missing or out of range
       def error_budget
         section = @data["errors"]
-        return if section.nil?
-
-        limits = section["abort_after"] if section.is_a?(Hash)
-        raise Error, "#{path}: errors needs an abort_after: mapping of total and percent" unless limits.is_a?(Hash)
-
-        total = limits["total"]
-        percent = limits["percent"]
-        raise Error, "#{path}: errors.abort_after.total must be a whole number above 0" unless total.is_a?(Integer) && total.positive?
-        unless percent.nil? || (percent.is_a?(Numeric) && percent.positive? && percent <= 100)
-          raise Error, "#{path}: errors.abort_after.percent must be above 0 and at most 100"
-        end
-
-        ErrorBudget.new(total:, percent:)
+        ErrorLimits.from_hash(section, path:).budget unless section.nil?
       end
 
       # Every vendor/model/effort/temperature combination the file lists, in
@@ -191,8 +156,9 @@ module LLM
       # @return [Array<Contender>]
       # @raise [Error] on a section or entry the file format does not have
       def contenders(overrides = {})
+        builder = ContenderBuilder.new(defaults:, overrides:)
         listing.entries.flat_map do |entry|
-          expand(entry.id, entry.settings, overrides, provider: entry.provider.direct? ? entry.provider.name.to_sym : nil)
+          builder.call(entry.id, entry.settings, provider: entry.provider.direct? ? entry.provider.name.to_sym : nil)
         end
       end
 
@@ -209,23 +175,13 @@ module LLM
       # @param overrides [Hash{String => Object}]
       # @return [Array<Contender>]
       def contenders_for(models, overrides = {})
-        models.flat_map { expand(it, {}, overrides) }
+        builder = ContenderBuilder.new(defaults:, overrides:)
+        models.flat_map { builder.call(it) }
       end
 
       private
 
       def listing = @listing ||= Listing.new(@data, path:, providers:)
-
-      def expand(model, entry, overrides, provider: nil)
-        settings = defaults.merge(entry).merge(overrides.compact)
-        Array(settings["effort"]).product(Array(settings["temperature"])).map do |effort, temperature|
-          Contender.new(model: model,
-            effort: effort.to_s,
-            temperature: temperature,
-            max_tokens: Integer(settings["max_tokens"]),
-            provider: provider)
-        end
-      end
     end
   end
 end

@@ -64,9 +64,19 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
     it "records calls per provider, with the run's length" do
       provider = instance_double(LLM::Evals::Providers::Base, name: "openrouter", direct?: false)
       model = instance_double(LLM::Evals::Model, id: "anthropic/a", provider: provider, settings: {})
-      result = instance_double(LLM::Evals::RunResult, duration: 2.0, errored?: false)
-      allow(described_class).to receive(:summary).and_return({})
-      summary = instance_double(LLM::Evals::Experiment::Summary, model: model, results: [result], worked_durations: [2.0])
+      kase = LLM::Evals::Case.new(id: "clear/001", dataset: "d", variant: "clear", input: "i", expected: nil, path: "", metadata: {})
+      result = instance_double(LLM::Evals::RunResult, case: kase, reply: nil, score: nil, error: nil, duration: 2.0, errored?: false)
+      summary = instance_double(LLM::Evals::Experiment::Summary,
+        model:            model,
+        results:          [result],
+        worked_durations: [2.0],
+        dataset:          "d",
+        name:             "n",
+        means:            {},
+        errors:           [],
+        duration:         2.0,
+        permalink:        nil,
+        usage:            LLM::Evals::Usage.zero)
       document = JSON.parse(described_class.dump([summary], metrics: [], run_options: { effective: { seconds: 4.0 } }))
       expect(document["call_stats"].first).to include("name" => "openrouter", "requests" => 1, "per_second" => 0.25, "p95" => 2.0)
     end

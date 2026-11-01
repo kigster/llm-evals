@@ -14,27 +14,6 @@ module LLM
           "-e low -c clear -j 2                 # two experiments at a time",
           "-n                                   # show the matrix, spend nothing"
         ]
-
-        def call(models:, dataset:, dry_run:, **options)
-          config = lineup(options)
-          weigh(config)
-          contenders = contenders(config, models, options)
-          datasets = datasets(dataset)
-          return matrix(datasets, contenders) if dry_run
-
-          setup!(contenders, options)
-          runs = datasets.flat_map { |name| contenders.map { experiment(it, config, options, dataset: name) } }
-          outcome = execute(runs, concurrency: concurrency(options), budget: config.error_budget)
-          report(outcome.summaries,
-            output:      options[:output],
-            open:        options[:open],
-            scores:      options[:scores],
-            format:      options[:format],
-            config:,
-            options:,
-            run_options: serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds: outcome.seconds))
-          abort_if_spent
-        end
       end
     end
   end

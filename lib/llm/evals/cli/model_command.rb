@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "pathname"
-require "uri"
 
 module LLM
   module Evals
@@ -17,69 +15,52 @@ module LLM
 
         def self.inherited(subclass)
           super
-          subclass.extend(Dry::CLI::UI::Flags)
-          subclass.flags(:dry_run, :output)
-          subclass.option :models,
-            type:    :array,
-            aliases: ["-m"],
-            default: [],
-            desc:    "Model ids, comma-separated, instead of the config file's vendors"
-          subclass.option :dataset,
-            type:    :array,
-            aliases: ["-d"],
-            default: [],
-            desc:    "Datasets, comma-separated; every dataset when omitted. Each model runs on each"
-          subclass.option :config, aliases: ["-C"], desc: "The lineup file (default: the suite's .llm-evals.config.yml)"
-          subclass.option :effort, aliases: ["-e"], desc: "Reasoning effort: default, or one the provider accepts (overrides the config file)"
-          subclass.option :temperature, aliases: ["-t"], desc: "Sampling temperature, or 'default' to send none (overrides the config file)"
-          subclass.option :max_tokens, desc: "Output token cap, reasoning included (overrides the config file)"
-          subclass.option :case,
-            type:    :array,
-            aliases: ["-c"],
-            default: [],
-            desc:    "Only these cases, by id prefix: -c clear or -c clear/003,vague/001"
-          subclass.option :parallelism, aliases: ["-p"], desc: "Cases in flight at once, per model (default: the config's defaults.parallelism)"
-          subclass.option :concurrency,
-            aliases: ["-j"],
-            desc:    "Experiments running at once; 0 runs them all together (default: the number of CPUs)"
-          subclass.option :project,
-            desc: "Braintrust project name; default is the BRAINTRUST_PROJECT_ID project, else the config file's project"
-          subclass.option :open,
-            type:    :boolean,
-            default: true,
-            desc:    "Open the best experiment in the browser when done (no effect with --local)"
-          subclass.option :scores,
-            type:    :boolean,
-            default: false,
-            desc:    "Also print every experiment by score, with its cost and its tracker's link"
-          subclass.option :totals,
-            values:  %w[overall variant both],
-            default: "overall",
-            desc:    "Group TUI totals by overall results, case variant or both"
-          subclass.option :format,
-            values: %w[tui html json],
-            desc:   "Override the configured display: tui, html or json"
-          subclass.option :display,
-            values: %w[none tui browser],
-            desc:   "Override results.display from the lineup"
-          subclass.option :autosave,
-            type:    :boolean,
-            default: nil,
-            desc:    "Save a JSON snapshot regardless of results.autosave"
-          subclass.option :destination,
-            desc: "Override results.destination"
-          subclass.option :temp_dir,
-            desc: "Override results.temp_dir"
-          subclass.option :local,
-            type:    :boolean,
-            default: false,
-            desc:    "No remote tracker: results go to log/ only (still calls the models)"
-          subclass.option :tracker,
-            desc: "The remote tracker: braintrust, logfire, none, or one the suite registers " \
-                  "(default: the config's tracker:, else the one whose key is in the environment)"
+          ModelOptions.apply(subclass)
+        end
+
+        # The run every model command makes; subclasses add what prints per run
+        # through {#details}.
+        def call(models:, dataset:, dry_run:, **options)
+          config = lineup(options)
+          weigh(config)
+          trackers = TrackerResolver.new(configuration:, config:, options:, err:)
+          planner = RunPlanner.new(configuration:, config:, options:, trackers:)
+          contenders = ContenderSelector.new(config:, providers:, warnings:).call(models, options)
+          datasets = planner.datasets(dataset)
+          return matrix(datasets, contenders) if dry_run
+
+          setup!(contenders, trackers)
+          runs = planner.experiments(datasets, contenders)
+          budget = config.error_budget
+          outcome = ExperimentPool.new(console: ui, colors: model_colors, warnings:).call(runs, concurrency: planner.concurrency, budget:)
+          record = RunRecord.new(command: invocation.action.to_s,
+            cli: { models:, dataset:, **options },
+            config:,
+            planner:,
+            trackers:,
+            providers:,
+            contenders:,
+            datasets:,
+            runs:,
+            seconds: outcome.seconds)
+          report(outcome.summaries,
+            output:      options[:output],
+            open:        options[:open],
+            scores:      options[:scores],
+            format:      options[:format],
+            config:,
+            options:,
+            run_options: record.to_h) { details(it) }
+          raise Error, budget.reason if budget&.spent?
         end
 
         private
+
+        # What prints before the leaderboard; nothing, unless a subclass says.
+        #
+        # @param _summaries [Array<Experiment::Summary>]
+        # @return [void]
+        def details(_summaries) = nil
 
         # @return [Config] the lineup: --config, else the suite's
         def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config]), providers:) : configuration.lineup
@@ -99,113 +80,14 @@ module LLM
         # @return [WeightedScore, nil] nil when the file sets none
         # @raise [Error] on a bad weight
         def weigh(config)
-          config.results # validate output settings before model calls start
-          config.error_budget
+          config.validate!
           weights = config.score_weights
           @weighted = weights.empty? ? nil : WeightedScore.new(weights, metrics: metrics.map(&:name))
         end
 
-        # @return [Hash{String => Object}] the setting flags that were given
-        def overrides(options)
-          { "effort" => options[:effort], "temperature" => options[:temperature], "max_tokens" => options[:max_tokens] }
-        end
-
-        def experiment(contender, config, options, dataset:)
-          Experiment.new(
-            model:       providers.model_for(contender, throttle: config.throttle),
-            cases:       cases_for(options[:case], dataset: dataset),
-            adapter:     configuration.adapter,
-            scorer:      scorer,
-            parallelism: Integer(options[:parallelism] || config.defaults["parallelism"]),
-            trackers:    trackers_for(config, options)
-          )
-        end
-
-        # Captures the parsed flags and the settings that actually reached the
-        # experiments. The former preserves the invocation; the latter records
-        # defaults and expanded case/model selections that were implicit.
-        def serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds:)
-          {
-            command:   invocation.action.to_s,
-            cli:       { models:, dataset:, **options },
-            effective: {
-              project:       options[:project] || config.project || configuration.project || configuration.name,
-              request_types: config.request_types.map(&:to_s),
-              datasets:,
-              cases:         runs.group_by(&:dataset).transform_values { |dataset_runs| dataset_runs.flat_map { it.cases.map(&:id) }.uniq },
-              contenders:    contenders.map do |contender|
-                settings = contender.settings
-                { model: contender.model, provider: providers.for(contender).name, effort: settings[:effort],
-                  temperature: settings[:temperature], max_tokens: settings[:max_tokens] }
-              end,
-              defaults:      config.defaults,
-              parallelism:   Integer(options[:parallelism] || config.defaults["parallelism"]),
-              concurrency:   concurrency(options),
-              tracker:       options[:local] ? "none" : remote_tracker(config, options)&.tracker_name,
-              seconds:       seconds
-            }
-          }
-        end
-
-        # The local JSON log, always, then the one remote tracker if any,
-        # each experiment getting instances of its own.
-        #
-        # @return [Array<Tracker>]
-        def trackers_for(config, options)
-          context = { suite:      configuration.name,
-                      project:    options[:project] || config.project || configuration.project || configuration.name,
-                      project_id: options[:project] ? nil : ENV["BRAINTRUST_PROJECT_ID"].to_s[/\S+/] }
-          local = Trackers::Local.new(dir: File.join(Dry::CLI::UI::Invocation.root(Dir.pwd), "log", "llm-evals"), **context)
-          klass = remote_tracker(config, options)
-          remote = klass&.new(**context, options: config.tracker_options(klass.tracker_name))
-          [local, remote].compact
-        end
-
-        # The remote tracker class this run uses, chosen once: --tracker,
-        # then tracker: in the config, then the environment. --local is none.
-        #
-        # @return [Class<Tracker>, nil]
-        def remote_tracker(config, options)
-          return @remote_tracker if defined?(@remote_tracker)
-
-          chosen = configuration.trackers.choose(flag: options[:tracker], config: config.tracker, env: ENV, local: options[:local])
-          @remote_tracker = chosen&.first
-          err.puts "tracker: #{chosen ? "#{chosen.first.tracker_name}, because #{chosen.last}" : "none"}" if options[:verbose]
-          @remote_tracker
-        end
-
-        # The contenders a command runs: the models named on the command line,
-        # or every model .llm-evals.config.yml lists.
-        #
-        # @param models [Array<String>] as given to -m, possibly comma-separated
-        # @return [Array<Contender>]
-        # @raise [Error] when neither names any model
-        def contenders(config, models, options)
-          models = models.flat_map { it.split(",") }
-          found = models.empty? ? config.contenders(overrides(options)) : config.contenders_for(models, overrides(options))
-          raise Error, "no models: list some under a provider in #{config.path}, or pass -m" if found.empty?
-
-          admit(found, config)
-        end
-
-        # Keeps the contenders whose provider produces what the suite declares
-        # in `request_types`, and records each refusal in {#warnings} by name,
-        # so a refused model is reported rather than run, failed and billed.
-        #
-        # @return [Array<Contender>] the admitted contenders
-        # @raise [Error] when none is admitted, naming every refusal
-        def admit(found, config)
-          found.each { providers.for(it) } # an unserved id fails here, before anything is spent
-          admitted, refusals = providers.admit(found, request_types: config.request_types)
-          refusals.each { warnings.record(it.to_s) }
-          raise Error, "no admitted models: #{refusals.join("; ")}" if admitted.empty?
-
-          admitted
-        end
-
         # Env, the tracker's gems and key, hooks, provider clients, then the catalogs.
-        def setup!(contenders, options)
-          configuration.runtime.setup!(providers: providers.used_by(contenders), tracker: remote_tracker(lineup(options), options))
+        def setup!(contenders, trackers)
+          configuration.runtime.setup!(providers: providers.used_by(contenders), tracker: trackers.remote)
           providers.verify!(contenders)
         end
 
@@ -217,82 +99,11 @@ module LLM
           save_warnings
         end
 
-        # Runs the experiments side by side, a progress bar each. What would
-        # print as a warning meanwhile, failed cases included, goes to
-        # {#warnings} instead.
-        #
-        # @param runs [Array<Experiment>]
-        # @param concurrency [Integer] experiments at once; 0 runs them all together
-        # @param budget [ErrorBudget, nil] stops the run once spent
-        # @return [RunOutcome]
-        def execute(runs, concurrency:, budget: nil)
-          summaries = Array.new(runs.size)
-          @budget = budget
-          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          warnings.capture { bars(runs, summaries, concurrency, budget) }
-          seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-          summaries.compact.each { |s| s.errors.each { warnings.record("[#{s.name}] #{it}") } }
-          RunOutcome.new(summaries: summaries.compact, seconds:)
-        end
-
-        # -j, else one experiment per CPU. Uncapped, a full lineup started
-        # every model x dataset pair at once: 140 experiments, each with its
-        # own pool of case threads, all fighting for the network and the screen.
-        #
-        # @return [Integer] experiments at once; 0 means all of them
-        # @raise [Error] on a negative or non-numeric -j
-        def concurrency(options)
-          value = options[:concurrency] || Etc.nprocessors
-          Integer(value).tap { raise Error, "--concurrency must be 0 or more, got #{value}" if it.negative? }
-        rescue ArgumentError, TypeError
-          raise Error, "--concurrency must be a whole number, got #{value.inspect}"
-        end
-
-        # Fails the command, after its report, when the error budget ran out.
-        #
-        # @return [void]
-        # @raise [Error] naming the limit
-        def abort_if_spent
-          raise Error, @budget.reason if @budget&.spent?
-        end
-
         # @return [Warnings] what this command has held back from the screen
         def warnings = @warnings ||= Warnings.new
 
-        def bars(runs, summaries, concurrency, budget)
-          ProgressBars.for(ui, colors: model_colors).run("Running #{runs.size} experiment#{"s" unless runs.size == 1}",
-            concurrent: concurrency.zero? || concurrency) do |multi|
-            labels = ProgressBars.labels(runs)
-            runs.each_with_index do |run, index|
-              multi.progress(labels[index], total: run.cases.size) do |bar|
-                next if budget&.spent?
-
-                summaries[index] = run.run(stop: -> { budget&.spent? },
-                  on_case: lambda { |result|
-                    budget&.record(result)
-                    bar.advance(as: result.errored? ? :failed : :ok)
-                  })
-              end
-            end
-          end
-        end
-
-        # @param names [Array<String>] as given to -d, possibly comma-separated; empty means every dataset
-        # @return [Array<String>]
-        # @raise [Error] on an unknown dataset, before anything is spent
-        def datasets(names)
-          names = names.flat_map { it.split(",") }.uniq
-          return discovery.datasets.tap { raise Error, "no datasets under #{discovery.root}" if it.empty? } if names.empty?
-
-          names.each { discovery.cases(dataset: it) }
-        end
-
         # Prints what the block writes, then the leaderboard, its glossary and
-        # the scores; then says where the warnings went, if any, and opens the
-        # best-scoring experiment.
-        #
-        # Saves or renders through {Render::Reports::Pipeline}; the configured
-        # display and autosave policy are independent of model execution.
+        # the scores, when the run's display is the terminal; see {ReportDispatcher}.
         #
         # @param summaries [Array<Experiment::Summary>]
         # @param output [String, nil] what -o was given: nil, "-", "" for the default file, or a path
@@ -301,67 +112,26 @@ module LLM
         # @param format [String] `tui`, `html` or `json`
         # @return [void]
         def report(summaries, config:, options:, run_options:, output:, open:, scores: false, format: nil, &details)
-          results = effective_results(config, options)
-          results[:display] = { "tui" => "tui", "none" => "none", "html" => "browser", "json" => "none" }.fetch(format, results[:display]) if format
-          snapshot_options = run_options.merge(results:)
-          pipeline = render_pipeline(results, run_options)
-
-          if format == "html"
-            json_path = if results[:autosave]
-                          pipeline.save_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options)
-                        end
-            json = if json_path
-                     File.read(json_path)
-                   else
-                     pipeline.write_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options, path: nil)
-                   end
-            if json_path
-              status_box(:success, "JSON results written to #{relative(json_path)}", stream: err)
-            end
-            path = report_output_path(output, "html", pipeline)
-            document = pipeline.write_html(json:, path:)
-            path ? status_box(:success, "HTML report written to #{relative(path)}", stream: err) : out.write(document)
-            save_warnings
-            if open && path
-              url = URI::DEFAULT_PARSER.escape("file://#{path}")
-              status_box(:warning, "could not open #{path}", stream: err) unless configuration.runtime.browse(url)
-            end
-            return
-          end
-          if format == "json"
-            if output.nil? || output.empty?
-              path = pipeline.save_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options)
-              status_box(:success, "JSON report written to #{relative(path)}", stream: err)
-            else
-              path = report_output_path(output, "json", pipeline)
-              document = pipeline.write_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options, path:)
-              path ? status_box(:success, "JSON report written to #{relative(path)}", stream: err) : out.write(document)
-            end
-            save_warnings
-            return
-          end
-
-          result = pipeline.call(summaries:,
-            metrics:,
-            weighted_score: @weighted,
-            run_options: snapshot_options,
-            autosave: results[:autosave],
-            display: results[:display],
-            open:) do |report|
+          report_dispatcher(config, options).call(summaries, metrics:, weighted_score: @weighted, run_options:, output:, open:, format:) do |report|
             @report_metrics = report.metrics
             @weighted = report.weighted_score
             terminal_report(report.summaries, output:, open:, scores:, totals_mode: options[:totals], run_options:) do |shown|
               details&.call(shown)
             end
           end
-          if result.json_path
-            status_box(:success, "JSON results written to #{relative(result.json_path)}", stream: err)
-          end
-          if result.html_path
-            status_box(:success, "HTML report written to #{relative(result.html_path)}", stream: err)
-            status_box(:warning, "could not open #{result.html_path}", stream: err) if open && !result.browser_opened
-          end
-          save_warnings unless results[:display] == "tui"
+        end
+
+        def report_dispatcher(config, options)
+          ReportDispatcher.new(config:,
+            options:,
+            providers:,
+            runtime: configuration.runtime,
+            suite: configuration.name,
+            invocation:,
+            console: ReportDispatcher::Console.new(out:,
+              browser: configuration.runtime,
+              save_warnings: method(:save_warnings),
+              status: ->(level, text) { status_box(level, text, stream: err) }))
         end
 
         def terminal_report(summaries, output:, open:, scores:, totals_mode:, run_options:, &details)
@@ -375,32 +145,6 @@ module LLM
           save_warnings
           url = summaries.max_by { it.score || -1 }&.permalink
           status_box(:warning, "could not open #{url}", stream: err) if open && url && !configuration.runtime.browse(url)
-        end
-
-        def effective_results(config, options)
-          configured = config.results
-          {
-            autosave:    options[:autosave].nil? ? configured.autosave : options[:autosave],
-            destination: File.expand_path(options[:destination] || configured.destination),
-            temp_dir:    File.expand_path(options[:temp_dir] || configured.temp_dir),
-            display:     options[:display] || configured.display_mode
-          }
-        end
-
-        def render_pipeline(results, run_options)
-          project = run_options.dig(:effective, :project) || run_options.dig("effective", "project") || configuration.name
-          LLM::Evals::Render::Reports::Pipeline.new(providers:,
-            runtime: configuration.runtime,
-            destination: results[:destination],
-            temp_dir: results[:temp_dir],
-            project:)
-        end
-
-        def report_output_path(output, extension, pipeline)
-          return nil if output == "-"
-          return pipeline.report_path(File.dirname(invocation.report_path("")), extension) if output.nil? || output.empty?
-
-          invocation.report_path(output).sub(/\.log\z/, ".#{extension}")
         end
 
         # Saves {#warnings}, if there are any, to
@@ -418,11 +162,6 @@ module LLM
           count = warnings.count
           status_box(:warning, "#{count} #{count == 1 ? "Warning was" : "Warnings were"} recorded in #{relative(path)}", stream: err)
         end
-
-        # @return [Dry::CLI::UI::Invocation] how the command was run, which names its files
-        def invocation = ui.send(:invocation)
-
-        def relative(path) = Pathname(path).relative_path_from(Dir.pwd).to_s
 
         # Points the tables and boxes at another stream while the block runs.
         # They keep the screen's width.
