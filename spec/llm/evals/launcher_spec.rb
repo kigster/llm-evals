@@ -635,6 +635,30 @@ RSpec.describe LLM::Evals::Launcher do
     it { run_cli && expect(stderr.string).to(include("no provider serves")) }
   end
 
+  context "with weights" do
+    let(:dir) { Dir.mktmpdir }
+    let(:lineup) { File.join(dir, "lineup.yml") }
+    let(:argv) { ["weights", "-C", lineup] }
+
+    before { File.write(lineup, "request_types: [prompt]\nweighted_score:\n  weights:\n    field_accuracy: 0.75\n    cost: -0.25\n") }
+    after { FileUtils.remove_entry(dir) }
+
+    it "prints each column's direction, weight and share" do
+      expect(run_cli).to match(/↑ field_accuracy.*0\.75.*75\.0%/).and match(/↓ cost.*-0\.25.*25\.0%/)
+    end
+
+    it "draws what is better low in bold blue and what is better high in bold yellow" do
+      allow(Pastel).to(receive(:new).and_wrap_original { |build, **| build.call(enabled: true) })
+      expect(run_cli).to include("\e[1;34m↓ cost", "\e[1;33m↑ field_accuracy")
+    end
+
+    context "when the file sets none" do
+      before { File.write(lineup, "request_types: [prompt]\n") }
+
+      it { run_cli && expect(stderr.string).to(include("no weighted_score.weights")) }
+    end
+  end
+
   context "with a lineup that sets weights" do
     let(:dir) { Dir.mktmpdir }
     let(:lineup) { File.join(dir, "lineup.yml") }

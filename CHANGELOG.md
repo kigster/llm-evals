@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `evals weights`, which prints each weighted column's direction, weight and real share of the score.
+
+## Unreleased
+
 - Draw failed cases in red on the progress bars of `run` and `compare`, so a failing model or account shows while the run is still going.
 
 ## 0.4.0 (2026-10-30)
