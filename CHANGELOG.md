@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `errors.abort_after` to the lineup: a run stops once it has `total` errors and, if set, `percent` of finished calls have failed. Partial results are kept and the command exits non-zero.
 - Draw failed cases in red on the progress bars of `run` and `compare`, so a failing model or account shows while the run is still going.
 
 ## 0.4.0 (2026-10-30)

@@ -520,6 +520,42 @@ RSpec.describe LLM::Evals::Launcher do
     end
   end
 
+  context "with an error limit in the lineup" do
+    let(:dir) { Dir.mktmpdir }
+    let(:lineup) { File.join(dir, "lineup.yml") }
+    let(:limits) { "total: 2" }
+    let(:argv) { ["compare", "--local", "--no-open", "-m", "fake/a,fake/b", "-C", lineup, "-p", "1", "-j", "1"] }
+
+    before do
+      allow(Dry::CLI::UI::Invocation).to receive(:root).and_return(dir)
+      File.write(lineup, "request_types: [prompt]\nerrors:\n  abort_after:\n    #{limits}\n")
+      allow(configuration.adapter).to receive(:call).and_raise(IOError, "closed stream")
+    end
+
+    after { FileUtils.remove_entry(dir) }
+
+    it "stops calling once the limit is reached" do
+      run_cli
+      expect(configuration.adapter).to have_received(:call).twice
+      expect(stderr.string).to include("run aborted: 2 of 2 finished calls failed")
+    end
+
+    it "fails the command" do
+      run_cli
+      expect(kernel).to have_received(:exit).with(1)
+    end
+
+    context "when the limit is invalid" do
+      let(:limits) { "percent: 60" }
+
+      it "refuses it before any call" do
+        run_cli
+        expect(stderr.string).to include("errors.abort_after.total must be")
+        expect(configuration.adapter).not_to have_received(:call)
+      end
+    end
+  end
+
   context "with compare over two datasets" do
     let(:argv) { %w[compare -m fake/a -d colors,animals -c clear/001 --local] }
 

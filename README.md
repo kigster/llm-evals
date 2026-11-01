@@ -454,6 +454,17 @@ weighted_score:
 
 You can weight `score`, `errors`, `time`, `cost` and your scorer's metrics. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
 
+#### Aborting a failing run
+
+```yaml
+errors:
+  abort_after:
+    total: 1000   # required
+    percent: 60   # optional: also needs 60% of finished calls to have failed
+```
+
+Both limits must be met. A case counts as an error when the call raises or the model's reply is an error, such as one that is not JSON. Calls in flight finish, nothing new starts, the report is written from what finished, and the command exits non-zero. Without `errors`, a run never aborts.
+
 #### Request types
 
 `request_types` is required. It identifies the kind of request the suite's adapter sends. The types belong to the providers and show in `llm-evals --help`; a suite only names them:

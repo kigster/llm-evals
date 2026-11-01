@@ -25,6 +25,10 @@ module LLM
     #     destination: ./evals/results/
     #     temp_dir: ./tmp           # temporary JSON used when autosave is off
     #     display: browser          # none, tui or browser
+    #   errors:                      # optional: when to give up; see {ErrorBudget}
+    #     abort_after:
+    #       total: 1000
+    #       percent: 60
     #   weighted_score:              # optional: what matters most; see {WeightedScore}
     #     weights:
     #       score: 0.6
@@ -150,6 +154,28 @@ module LLM
         raise Error, "#{path}: weighted_score needs a weights: mapping of column to number" unless weights.is_a?(Hash)
 
         weights.transform_keys(&:to_s)
+      end
+
+      # When to give up on a run; see {ErrorBudget}. Both limits must be met, and
+      # `percent` needs `total`, since one failed first call is already 100%.
+      #
+      # @return [ErrorBudget, nil] nil when the file sets no limit
+      # @raise [Error] on a limit that is missing or out of range
+      def error_budget
+        section = @data["errors"]
+        return if section.nil?
+
+        limits = section["abort_after"] if section.is_a?(Hash)
+        raise Error, "#{path}: errors needs an abort_after: mapping of total and percent" unless limits.is_a?(Hash)
+
+        total = limits["total"]
+        percent = limits["percent"]
+        raise Error, "#{path}: errors.abort_after.total must be a whole number above 0" unless total.is_a?(Integer) && total.positive?
+        unless percent.nil? || (percent.is_a?(Numeric) && percent.positive? && percent <= 100)
+          raise Error, "#{path}: errors.abort_after.percent must be above 0 and at most 100"
+        end
+
+        ErrorBudget.new(total:, percent:)
       end
 
       # Every vendor/model/effort/temperature combination the file lists,
