@@ -20,6 +20,15 @@ module LLM
         # @return [Float, nil]
         def mean(metric) = means[metric.respond_to?(:name) ? metric.name : metric.to_s]
 
+        # @return [Float, nil] the mean seconds of the calls that worked
+        def latency = Stats.mean(worked_durations)
+
+        # @return [Float, nil] the 95th percentile seconds of the calls that worked
+        def latency_p95 = Stats.percentile(worked_durations, CallStats::P95)
+
+        # @return [Array<Float>]
+        def worked_durations = results.reject(&:errored?).map(&:duration)
+
         # The same experiment over one variant's cases. Its duration is the sum
         # of those cases' own, since they overlapped with the others.
         #

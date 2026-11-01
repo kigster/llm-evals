@@ -28,6 +28,7 @@ module LLM
               run_options:  json_value(run_options),
               metrics:      metrics.map { { name: it.name, description: it.description, aggregate: it.aggregate, primary: it.primary } },
               weights:      weighted_score&.weights,
+              call_stats:   CallStats.for_run(summaries, run_options).rows.map(&:to_h),
               summaries:    summaries.map { summary(it) }
             }
             ::JSON.pretty_generate(document)
