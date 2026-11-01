@@ -16,8 +16,9 @@ module LLM
     # says, or for a growing delay when it says nothing. The number of attempts
     # is bounded, and so is the wait, so that a run ends with errors and not at all.
     class Throttle
-      # One `rate_limit`: the first `burst` calls go at once, then `per_minute`,
-      # evenly spaced.
+      # One `rate_limit`: the first `burst` calls of the run go at once, then
+      # `per_minute`, evenly spaced. A burst is spent once and never refills, so
+      # this is a head start and not a token bucket.
       class Limit
         # @param burst [Integer]
         # @param per_minute [Integer]
@@ -45,7 +46,8 @@ module LLM
       WAITED = :llm_evals_throttle_waited
 
       # Runs the block and says how long it spent waiting here, so that latency
-      # measures the model and not this lineup's limits.
+      # measures the model and not this lineup's limits. Waits are counted per
+      # thread, so those of threads an adapter starts itself are not seen.
       #
       # @yieldreturn [Object]
       # @return [Array(Object, Float)] the block's value, and the seconds waited on this thread
