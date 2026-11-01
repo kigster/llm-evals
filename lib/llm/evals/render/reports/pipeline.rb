@@ -23,7 +23,7 @@ module LLM
             @runtime = runtime
             @destination = destination
             @temp_dir = temp_dir
-            @project = project
+            @project = project.to_s.downcase.gsub(/[^a-z0-9]+/, "-").delete_prefix("-").delete_suffix("-")
           end
 
           # @param summaries [Array<Experiment::Summary>]
@@ -49,7 +49,7 @@ module LLM
                        yield report if block_given?
                        [nil, nil, nil, nil]
                      when "browser"
-                       render_browser(report, stamp:, open:)
+                       render_browser(report, open:)
                      else
                        [nil, nil, nil, nil]
                      end
@@ -105,13 +105,24 @@ module LLM
             path
           end
 
+          # The name of a project's report, the same on every run, so the newest
+          # replaces the last. The JSON beside it keeps the timestamp, and
+          # `render` can rebuild any older report from it.
+          #
+          # @param directory [String]
+          # @param extension [String] html, or the css and js that go with it
+          # @return [String]
+          def report_path(directory, extension = "html")
+            File.join(directory, "#{@project}-llm-evals.report.#{extension}")
+          end
+
           private
 
-          def render_browser(report, stamp:, open:)
+          def render_browser(report, open:)
             FileUtils.mkdir_p(@destination)
-            html_path = artifact_path(@destination, stamp, "html")
-            css_path = artifact_path(@destination, stamp, "css")
-            js_path = artifact_path(@destination, stamp, "js")
+            html_path = report_path(@destination, "html")
+            css_path = report_path(@destination, "css")
+            js_path = report_path(@destination, "js")
             File.write(css_path, File.read(File.join(HTML::TEMPLATE_DIRECTORY, "html_report.css")))
             File.write(js_path, File.read(File.join(HTML::TEMPLATE_DIRECTORY, "html_report.js")))
             html = HTML.render(report,

@@ -252,10 +252,11 @@ RSpec.describe LLM::Evals::Launcher do
     context "without an explicit report path" do
       let(:argv) { ["compare", "--format", "html", "-m", "fake/echo", "-d", "colors", "--autosave", "--destination", destination, "--local", "--no-open"] }
 
-      it "writes the timestamped HTML report under log/" do
+      it "writes <project>-llm-evals.report.html under log/" do
         run_cli
 
         report_path = Dir[File.join(dir, "log", "*.html")].fetch(0)
+        expect(File.basename(report_path)).to match(/\A[a-z0-9-]+-llm-evals\.report\.html\z/)
         expect(File.read(report_path)).to include("<!doctype html>", "clear/001")
         expect(stderr.string).to include("HTML report written to")
       end
@@ -441,6 +442,11 @@ RSpec.describe LLM::Evals::Launcher do
     end
 
     after { FileUtils.remove_entry(dir) }
+
+    it "names the report after the saved project when -o is not given" do
+      described_class.new(["render", json_path], StringIO.new, stdout, stderr, kernel).execute!
+      expect(File.basename(Dir[File.join(dir, "log", "*.html")].fetch(0))).to match(/\A[a-z0-9-]+-llm-evals\.report\.html\z/)
+    end
 
     it "renders the saved run without calling a model" do
       allow(configuration).to receive(:runtime).and_return(render_runtime)

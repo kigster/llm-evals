@@ -6,6 +6,7 @@ Renamed from `agent-evals`: gem `llm-evals`, namespace `LLM::Evals`, executables
 
 - Add `--format html` to `run` and `compare` for a standalone report with global and dataset rankings, coverage, sortable tables, case inputs, expected answers, scores and diagnostics. TUI remains the default; HTML writes to `log/` unless `-o` names a path. Provider and model names are color-coded, with effort and temperature in separate columns.
 - Add `--totals overall|variant|both` to choose the TUI totals view; overall results are the default and per-variant tables remain available.
+- Name every default HTML report `<project>-llm-evals.report.html`, replacing the previous one; `-o` still chooses another path.
 - Save every run as timestamped JSON by default and render browser and TUI output from the decoded JSON snapshot.
 - Add input and output token totals to the HTML model summaries, including global and per-dataset aggregates.
 

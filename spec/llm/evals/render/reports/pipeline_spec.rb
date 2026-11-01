@@ -42,6 +42,23 @@ RSpec.describe LLM::Evals::Render::Reports::Pipeline do
       expect([result.html_path, result.css_path, result.js_path, result.json_path]).to all(satisfy { File.exist?(it) })
     end
 
+    it "names the report and its assets after the project, with no timestamp" do
+      expect([result.html_path, result.css_path, result.js_path].map { File.basename(it) })
+        .to eq(%w[html css js].map { File.basename(pipeline.report_path("", it)) })
+      expect(File.basename(result.html_path)).to match(/\A[a-z0-9-]+-llm-evals\.report\.html\z/)
+    end
+
+    it "replaces the previous report" do
+      first = pipeline.call(**arguments, autosave: true, display: "browser", open: false).html_path
+      expect(pipeline.call(**arguments, autosave: true, display: "browser", open: false).html_path).to eq(first)
+      expect(Dir[File.join(destination, "*.html")].size).to eq(1)
+    end
+
+    it "keeps every run's JSON" do
+      2.times { pipeline.call(**arguments, autosave: true, display: "browser", open: false) }
+      expect(Dir[File.join(destination, "*.json")].size).to eq(2)
+    end
+
     it "links the assets by file name" do
       expect(File.read(result.html_path)).to include(File.basename(result.css_path), File.basename(result.js_path))
     end

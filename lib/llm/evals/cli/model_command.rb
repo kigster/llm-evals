@@ -298,7 +298,7 @@ module LLM
             if json_path
               status_box(:success, "JSON results written to #{relative(json_path)}", stream: err)
             end
-            path = report_output_path(output, "html")
+            path = report_output_path(output, "html", pipeline)
             document = pipeline.write_html(json:, path:)
             path ? status_box(:success, "HTML report written to #{relative(path)}", stream: err) : out.write(document)
             save_warnings
@@ -313,7 +313,7 @@ module LLM
               path = pipeline.save_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options)
               status_box(:success, "JSON report written to #{relative(path)}", stream: err)
             else
-              path = report_output_path(output, "json")
+              path = report_output_path(output, "json", pipeline)
               document = pipeline.write_json(summaries:, metrics:, weighted_score: @weighted, run_options: snapshot_options, path:)
               path ? status_box(:success, "JSON report written to #{relative(path)}", stream: err) : out.write(document)
             end
@@ -365,7 +365,6 @@ module LLM
 
         def render_pipeline(results, run_options)
           project = run_options.dig(:effective, :project) || run_options.dig("effective", "project") || configuration.name
-          project = project.to_s.downcase.gsub(/[^a-z0-9]+/, "-").sub(/\A-/, "").sub(/-+\z/, "")
           LLM::Evals::Render::Reports::Pipeline.new(providers:,
             runtime: configuration.runtime,
             destination: results[:destination],
@@ -373,15 +372,11 @@ module LLM
             project:)
         end
 
-        def report_output_path(output, extension)
+        def report_output_path(output, extension, pipeline)
           return nil if output == "-"
+          return pipeline.report_path(File.dirname(invocation.report_path("")), extension) if output.nil? || output.empty?
 
-          path = if output.nil? || output.empty?
-                   invocation.report_path("")
-                 else
-                   invocation.report_path(output)
-                 end
-          path.sub(/\.log\z/, ".#{extension}")
+          invocation.report_path(output).sub(/\.log\z/, ".#{extension}")
         end
 
         # Saves {#warnings}, if there are any, to
