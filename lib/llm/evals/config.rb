@@ -24,7 +24,7 @@ module LLM
     #     autosave: true           # completed runs are saved as JSON (default)
     #     destination: ./evals/results/
     #     temp_dir: ./tmp           # temporary JSON used when autosave is off
-    #     display: browser          # none, tui or browser
+    #     display: both             # none, tui, browser or both (default)
     #   errors:                      # optional: when to give up; see {Actions::ErrorBudget}
     #     abort_after:
     #       total: 1000
@@ -59,7 +59,14 @@ module LLM
         "effort" => "default", "temperature" => 0.2, "max_tokens" => 4096, "parallelism" => 4
       }.freeze
 
-      RESULT_DISPLAYS = %w[none tui browser].freeze
+      RESULT_DISPLAYS = %w[none tui browser both].freeze
+
+      # The displays that draw in the terminal, and those that write the HTML report.
+      TERMINAL_DISPLAYS = %w[tui both].freeze
+      BROWSER_DISPLAYS = %w[browser both].freeze
+
+      # What a lineup that says nothing gets: the terminal summary, and the HTML report opened in the browser.
+      DEFAULT_DISPLAY = "both"
 
       attr_reader :path, :providers
 

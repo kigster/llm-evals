@@ -44,16 +44,8 @@ module LLM
             return Result.new(json_path:, html_path: nil, css_path: nil, js_path: nil, browser_opened: nil) if display == "none"
 
             report = JSON.decode(File.read(json_path), providers: @providers)
-            assets = case display
-                     when "tui"
-                       yield report if block_given?
-                       [nil, nil, nil, nil]
-                     when "browser"
-                       render_browser(report, open:)
-                     else
-                       [nil, nil, nil, nil]
-                     end
-            html_path, css_path, js_path, browser_opened = assets
+            yield report if block_given? && Config::TERMINAL_DISPLAYS.include?(display)
+            html_path, css_path, js_path, browser_opened = render_browser(report, open:) if Config::BROWSER_DISPLAYS.include?(display)
             Result.new(json_path: autosave ? json_path : nil, html_path:, css_path:, js_path:, browser_opened:)
           ensure
             FileUtils.rm_f(json_path) if defined?(json_path) && json_path && !autosave

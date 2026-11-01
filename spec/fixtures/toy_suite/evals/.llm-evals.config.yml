@@ -9,6 +9,7 @@ defaults:
   max_tokens: 256
   parallelism: 2
 results:
+  display: tui
   autosave: false
 fake:
   models:

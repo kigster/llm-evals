@@ -112,10 +112,13 @@ module LLM
         # @param format [String] `tui`, `html` or `json`
         # @return [void]
         def report(summaries, config:, options:, run_options:, output:, open:, scores: false, format: nil, &details)
-          report_dispatcher(config, options).call(summaries, metrics:, weighted_score: @weighted, run_options:, output:, open:, format:) do |report|
+          dispatcher = report_dispatcher(config, options)
+          # A run that also writes the page opens that, not a second window on the tracker.
+          open_tracker = open && dispatcher.display(format) == "tui"
+          dispatcher.call(summaries, metrics:, weighted_score: @weighted, run_options:, output:, open:, format:) do |report|
             @report_metrics = report.metrics
             @weighted = report.weighted_score
-            terminal_report(report.summaries, output:, open:, scores:, totals_mode: options[:totals], run_options:) do |shown|
+            terminal_report(report.summaries, output:, open: open_tracker, scores:, totals_mode: options[:totals], run_options:) do |shown|
               details&.call(shown)
             end
           end
