@@ -74,7 +74,7 @@ module LLM
       # @return [String] e.g. "anthropic/claude-haiku-5.5 effort=low t=0.0 [clear]"
       def name = "#{model} [#{dataset}]"
 
-      # @param on_case [#call, nil] called once per finished case
+      # @param on_case [#call, nil] called with each finished case's {RunResult}
       # @return [Summary]
       def run(on_case: nil)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -126,13 +126,13 @@ module LLM
         Array.new([parallelism, cases.size].min) do
           Thread.new do
             while (kase = queue.pop)
-              begin
+              result = begin
                 remember evaluate(kase)
               rescue StandardError => e
-                remember RunResult.new(experiment: self, case: kase, error: "#{e.class}: #{e.message}")
                 errors << "#{kase.key}: #{e.class}: #{e.message}"
+                remember RunResult.new(experiment: self, case: kase, error: "#{e.class}: #{e.message}")
               end
-              on_case&.call
+              on_case&.call(result)
             end
           end
         end.each(&:join)

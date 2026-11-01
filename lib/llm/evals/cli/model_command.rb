@@ -251,7 +251,7 @@ module LLM
             labels = ProgressBars.labels(runs)
             runs.each_with_index do |run, index|
               multi.progress(labels[index], total: run.cases.size) do |bar|
-                summaries[index] = run.run(on_case: -> { bar.advance })
+                summaries[index] = run.run(on_case: ->(result) { bar.advance(as: result.errored? ? :failed : :ok) })
               end
             end
           end

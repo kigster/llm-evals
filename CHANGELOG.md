@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Draw failed cases in red on the progress bars of `run` and `compare`, so a failing model or account shows while the run is still going.
+
 ## 0.4.0 (2026-10-30)
 
 Renamed from `agent-evals`: gem `llm-evals`, namespace `LLM::Evals`, executable `evals` (with `llm-evals` as an identical spare, for a system where `evals` is taken; shell completion targets `evals`), lineup file `.llm-evals.config.yml`. The old names are gone. The version continues from `agent-evals` 0.3.1.
