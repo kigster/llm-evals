@@ -92,7 +92,7 @@ module LLM
 
         # @return [Array<Integer>] each column's widest line
         def column_widths(rows)
-          rows.transpose.map { |column| column.flat_map { it.to_s.split("\n") }.map(&:length).max.to_i }
+          rows.transpose.map { |column| column.flat_map { pastel.strip(it.to_s).split("\n") }.map(&:length).max.to_i }
         end
 
         # ui.info, ui.success, ui.warn and ui.error, painted on their color

@@ -76,12 +76,13 @@ module LLM
       def name = "#{model} [#{dataset}]"
 
       # @param on_case [#call, nil] called with each finished case's {RunResult}
+      # @param stop [#call, nil] asked before each case; truthy leaves the rest unrun
       # @return [Summary]
-      def run(on_case: nil)
+      def run(on_case: nil, stop: nil)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         adapter.prepare(dataset)
         trackers.each { it.start(self) }
-        errors = run_locally(on_case)
+        errors = run_locally(on_case, stop)
         # An approximation: it assumes waits fell evenly across the workers. Workers
         # that wait while others run did not hold up the run for that long.
         summary = summarize(errors, nil, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started - (@waited / workers))
@@ -124,14 +125,14 @@ module LLM
       end
 
       # A fixed pool of threads over a queue: `parallelism` cases in flight.
-      def run_locally(on_case)
+      def run_locally(on_case, stop)
         queue = Queue.new
         cases.each { queue << it }
         queue.close
         errors = Queue.new
         Array.new(workers) do
           Thread.new do
-            while (kase = queue.pop)
+            while !stop&.call && (kase = queue.pop)
               result = begin
                 remember evaluate(kase)
               rescue StandardError => e
