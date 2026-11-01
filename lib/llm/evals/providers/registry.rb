@@ -3,10 +3,10 @@
 module LLM
   module Evals
     module Providers
-      # The providers in use. A `vendors:` contender goes to the first
+      # The providers in use. A contender outside a direct provider's section goes to the first
       # provider that serves its id, asked last-registered first, so a
       # suite's own transport beats the defaults and OpenRouter, which claims
-      # everything, is always last. A `direct:` contender goes to the
+      # everything, is always last. A direct contender goes to the
       # provider it names, and a direct provider is never asked about an id.
       class Registry
         include Enumerable
@@ -33,7 +33,7 @@ module LLM
 
         def each(&) = @providers.reverse.each(&)
 
-        # @param target [Contender, String] a contender, or a `vendors:` model id
+        # @param target [Contender, String] a contender, or a model id
         # @return [Base]
         # @raise [Error] when no provider serves it
         def for(target)
@@ -44,7 +44,7 @@ module LLM
             raise(Error, "no provider serves #{model_id.inspect}; have #{reject(&:direct?).map(&:name).join(", ")}")
         end
 
-        # @param name [Symbol, String] a key under `direct:`
+        # @param name [Symbol, String] a direct provider's section
         # @return [Base]
         # @raise [Error] when no direct provider has the name
         def direct(name)
@@ -52,7 +52,7 @@ module LLM
             raise(Error, "no direct provider #{name.to_s.inspect}; have #{direct_names.join(", ")}")
         end
 
-        # @return [Array<String>] the names `direct:` may use
+        # @return [Array<String>] the direct providers' names
         def direct_names = select(&:direct?).map(&:name)
 
         # @param contenders [Array<Contender>]
@@ -64,8 +64,9 @@ module LLM
         def keys_for(contenders) = used_by(contenders).flat_map(&:env_keys).uniq
 
         # @param contender [Contender]
+        # @param throttle [Throttle]
         # @return [Model]
-        def model_for(contender) = self.for(contender).model_for(contender)
+        def model_for(contender, throttle: Throttle.new) = self.for(contender).model_for(contender, throttle:)
 
         # One refused contender: who, and why.
         Refusal = Data.define(:contender, :reason) do

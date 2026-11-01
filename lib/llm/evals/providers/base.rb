@@ -27,8 +27,8 @@ module LLM
         def request_type_description = ""
 
         # A direct provider serves a vendor's own API and is reached only
-        # through a `direct:` entry that names it; it never claims an id from
-        # `vendors:`, however the id is spelled.
+        # through its own section of the lineup; it never claims another's id,
+        # however the id is spelled.
         #
         # @return [Boolean]
         def direct? = false
@@ -75,9 +75,18 @@ module LLM
           raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Completion"
         end
 
+        # @param error [StandardError] what a call raised
+        # @return [Boolean] whether the same call may work later
+        def retryable?(_error) = false
+
+        # @param error [StandardError] what a call raised
+        # @return [Numeric, nil] the seconds the API asked to wait, if it did
+        def retry_after(_error) = nil
+
         # @param contender [Contender]
+        # @param throttle [Throttle]
         # @return [Model]
-        def model_for(contender) = Model.new(id: contender.model, provider: self, settings: contender.settings)
+        def model_for(contender, throttle: Throttle.new) = Model.new(id: contender.model, provider: self, settings: contender.settings, throttle:)
 
         # Every id in `model_ids` the provider does not list.
         #

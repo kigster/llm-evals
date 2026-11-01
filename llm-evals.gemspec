@@ -56,6 +56,7 @@ Gem::Specification.new do |spec|
   # Bundled gems since Ruby 3.5 are not loadable under Bundler unless declared;
   # Warnings builds a Logger, so a consumer without this line would raise LoadError.
   spec.add_dependency "logger", "~> 1.6"
+  spec.add_dependency "ruby-limiter", "~> 2.3"
 
   # Braintrust is deliberately not a runtime dependency: local runs and suites
   # that choose another tracker never load it. The tracker command requires it

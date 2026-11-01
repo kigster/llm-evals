@@ -114,7 +114,7 @@ module LLM
       def discovery = Discovery.new(root: root, glob: cases_glob)
 
       # @return [Config] the lineup file
-      def lineup = Config.new(config, direct_providers: providers.direct_names)
+      def lineup = Config.new(config, providers:)
 
       # @return [Runtime]
       def runtime = Runtime.new(env_files: env_files, hooks: hooks, app_name: name)

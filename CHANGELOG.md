@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Breaking: the lineup lists models under a provider section (`openrouter: { vendors: ... }`, `typesafe: { models: ... }`). Top-level `vendors:` and `direct:` are errors.
+- Add `rate_limit: { burst, per_minute }` per provider, vendor and model, through `ruby-limiter`. Waiting is left out of `time`.
+- Turn RubyLLM's retries off and retry here, honoring `Retry-After` across a vendor's calls, up to 5 attempts.
 - Add `errors.abort_after` to the lineup: a run stops once it has `total` errors and, if set, `percent` of finished calls have failed. Partial results are kept and the command exits non-zero.
 - Add `evals weights`, which prints each weighted column's direction, weight and real share of the score, and names in red any scorer metric the weights leave out.
 - Report calls per provider, vendor and model: requests, errors, requests per second, average and 95th percentile latency, in the terminal and as `call_stats` in the JSON. Add `latency` and `p95` as columns `weighted_score` can weight.

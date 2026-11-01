@@ -12,6 +12,6 @@ defaults:
   parallelism: 2
 results:
   autosave: false
-vendors:
-  fake:
-    - model: echo
+fake:
+  models:
+    - echo

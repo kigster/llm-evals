@@ -109,7 +109,7 @@ RSpec.describe LLM::Evals::Launcher do
     let(:path) { File.join(dir, "lineup.yml") }
     let(:argv) { ["run", "--local", "--config", path] }
 
-    before { File.write(path, "request_types: [prompt]\ndirect:\n  typesafe:\n    - model: jev-latest\n") }
+    before { File.write(path, "request_types: [prompt]\ntypesafe:\n  models:\n    - jev-latest\n") }
 
     after { FileUtils.remove_entry(dir) }
 
@@ -140,11 +140,11 @@ RSpec.describe LLM::Evals::Launcher do
     let(:path) { File.join(dir, "lineup.yml") }
     let(:argv) { ["run", "--local", "-n", "--config", path] }
 
-    before { File.write(path, "request_types: [prompt]\ndirect:\n  ollama:\n    - model: llama3\n") }
+    before { File.write(path, "request_types: [prompt]\nollama:\n  models:\n    - llama3\n") }
 
     after { FileUtils.remove_entry(dir) }
 
-    it { run_cli && expect(stderr.string).to(include("#{path}: unknown provider \"ollama\" under direct:; known: typesafe")) }
+    it { run_cli && expect(stderr.string).to(include("#{path}: unknown provider \"ollama\"; known: ")) }
   end
 
   context "with run and a lineup without request_types" do
@@ -152,7 +152,7 @@ RSpec.describe LLM::Evals::Launcher do
     let(:path) { File.join(dir, "lineup.yml") }
     let(:argv) { ["run", "--local", "-n", "--config", path] }
 
-    before { File.write(path, "vendors:\n  fake:\n    - model: other\n") }
+    before { File.write(path, "fake:\n  models:\n    - other\n") }
 
     after { FileUtils.remove_entry(dir) }
 
@@ -820,7 +820,7 @@ RSpec.describe LLM::Evals::Launcher do
     after { FileUtils.remove_entry(dir) }
 
     it "reads it" do
-      File.write(File.join(dir, "lineup.yml"), "request_types: [prompt]\nvendors:\n  fake:\n    - model: other\n")
+      File.write(File.join(dir, "lineup.yml"), "request_types: [prompt]\nfake:\n  models:\n    - other\n")
       expect(run_cli).to include("fake/other")
     end
 
@@ -828,14 +828,14 @@ RSpec.describe LLM::Evals::Launcher do
       let(:argv) { ["run", "--local", "-n", "-C", File.join(dir, "lineup.yml")] }
 
       it "reads it" do
-        File.write(File.join(dir, "lineup.yml"), "request_types: [prompt]\nvendors:\n  fake:\n    - model: other\n")
+        File.write(File.join(dir, "lineup.yml"), "request_types: [prompt]\nfake:\n  models:\n    - other\n")
         expect(run_cli).to include("fake/other")
       end
     end
 
     it "fails on an empty one" do
       run_cli
-      expect(stderr.string).to include("no models: list some under vendors")
+      expect(stderr.string).to include("no models: list some under a provider")
     end
   end
 

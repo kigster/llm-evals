@@ -33,16 +33,22 @@ module LLM
     #     weights:
     #       score: 0.6
     #       cost: -0.4
-    #   vendors:                   # the OpenRouter list; every entry takes a prompt
-    #     anthropic:
-    #       - model: claude-haiku-5.5
-    #         effort: [default, low]  # a list expands into one contender per value
-    #   direct:                      # a vendor's own API, one request type each
-    #     typesafe:
-    #       - model: jev-latest
+    #   openrouter:                  # a provider's name; this one needs OPENROUTER_API_KEY
+    #     rate_limit: { burst: 1000, per_minute: 500 }
+    #     vendors:
+    #       anthropic:
+    #         rate_limit: { burst: 10, per_minute: 50 }
+    #         models:
+    #           - model: claude-haiku-5.5
+    #             rate_limit: { burst: 5, per_minute: 20 }
+    #             effort: [default, low]  # a list expands into one contender per value
+    #   typesafe:                    # a provider with no vendors; this one needs TYPESAFE_API_KEY
+    #     models:
+    #       - jev-1.14.0             # a bare name is the same as `- model: jev-1.14.0`
     #
-    # Each entry becomes "<vendor>/<model>", the id a provider recognises. A
-    # key under `direct:` names a provider; its entries carry that provider.
+    # An entry under `vendors:` becomes "<vendor>/<model>", the id a provider
+    # recognises; one under `models:` becomes the provider's prefix and the name.
+    # A call waits on every `rate_limit` that matches it; see {Throttle}.
     class Config
       # The request types a suite may declare. `prompt` is a chat completion:
       # system and user text in, text out. `typesafe` is TypeSafe's typed
@@ -56,13 +62,13 @@ module LLM
       Results = Data.define(:autosave, :destination, :temp_dir, :display_mode)
       RESULT_DISPLAYS = %w[none tui browser].freeze
 
-      attr_reader :path, :direct_providers
+      attr_reader :path, :providers
 
       # @param path [String] read when it exists; an absent file is an empty lineup
-      # @param direct_providers [Array<String>] the provider names `direct:` may use
-      def initialize(path, direct_providers: Providers::Registry.default.direct_names)
+      # @param providers [Providers::Registry] whose names the file's sections may use
+      def initialize(path, providers: Providers::Registry.default)
         @path = path
-        @direct_providers = direct_providers
+        @providers = providers
         @data = File.exist?(path) ? (YAML.safe_load_file(path) || {}) : {}
       end
 
@@ -178,25 +184,24 @@ module LLM
         ErrorBudget.new(total:, percent:)
       end
 
-      # Every vendor/model/effort/temperature combination the file lists,
-      # `vendors:` first, then `direct:`.
+      # Every vendor/model/effort/temperature combination the file lists, in
+      # the file's order.
       #
       # @param overrides [Hash{String => Object}] values from the command line; nil entries are ignored
       # @return [Array<Contender>]
-      # @raise [Error] on a key under `direct:` that names no provider
+      # @raise [Error] on a section or entry the file format does not have
       def contenders(overrides = {})
-        vendors = (@data["vendors"] || {}).flat_map do |vendor, entries|
-          Array(entries).flat_map { expand("#{vendor}/#{it.fetch("model")}", it, overrides) }
+        listing.entries.flat_map do |entry|
+          expand(entry.id, entry.settings, overrides, provider: entry.provider.direct? ? entry.provider.name.to_sym : nil)
         end
-        direct = (@data["direct"] || {}).flat_map do |name, entries|
-          unless direct_providers.include?(name.to_s)
-            raise Error, "#{path}: unknown provider #{name.inspect} under direct:; known: #{direct_providers.join(", ")}"
-          end
-
-          Array(entries).flat_map { expand("#{name}/#{it.fetch("model")}", it, overrides, provider: name.to_sym) }
-        end
-        vendors + direct
       end
+
+      # The file's `rate_limit`s, ready for calls. The same one every time, since
+      # the limits only hold if every model of a run shares them.
+      #
+      # @return [Throttle]
+      # @raise [Error] on a limit that is missing a number, out of range or set twice
+      def throttle = @throttle ||= Throttle.new(listing.limits)
 
       # The models given on the command line, at the file's default settings.
       #
@@ -208,6 +213,8 @@ module LLM
       end
 
       private
+
+      def listing = @listing ||= Listing.new(@data, path:, providers:)
 
       def expand(model, entry, overrides, provider: nil)
         settings = defaults.merge(entry).merge(overrides.compact)

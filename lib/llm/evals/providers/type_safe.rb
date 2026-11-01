@@ -5,8 +5,8 @@ module LLM
     module Providers
       # TypeSafe's own API, which serves Jev as typed questions (noul, choice,
       # score) rather than chat: request type `typesafe`, reached only through
-      # a `direct: typesafe:` entry, whose ids read "typesafe/<name>". Jev on
-      # OpenRouter, `typesafe/jev-router` under `vendors:`, is a chat model
+      # a `typesafe:` section, whose ids read "typesafe/<name>". Jev on
+      # OpenRouter, `typesafe/jev-router` under `openrouter:`, is a chat model
       # and goes through {OpenRouter}; the contender carries which is meant.
       # The gem knows this API's model list, key and pricing, enough for
       # `verify` and the cost column; the request shape waits for the first

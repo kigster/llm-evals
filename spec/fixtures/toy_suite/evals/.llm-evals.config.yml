@@ -1,5 +1,5 @@
-# The toy suite's lineup: fake models under vendors, so nothing here can call
-# a network, plus one direct TypeSafe entry the suite refuses, since it
+# The toy suite's lineup: fake models, so nothing here can call
+# a network, plus one TypeSafe entry the suite refuses, since it
 # produces prompts only.
 project: toy-suite
 request_types: [prompt]
@@ -10,11 +10,11 @@ defaults:
   parallelism: 2
 results:
   autosave: false
-vendors:
-  fake:
+fake:
+  models:
     - model: echo
       effort: [default, low]
     - model: parrot
-direct:
-  typesafe:
-    - model: jev-latest
+typesafe:
+  models:
+    - jev-latest

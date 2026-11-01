@@ -5,14 +5,14 @@ module LLM
     # One model at one setting: what a single experiment runs. Built by
     # {Config} from the lineup file, or from `-m` on the command line.
     #
-    # `provider` is nil for a `vendors:` entry, which OpenRouter serves, and
-    # the provider's name for a `direct:` entry. It travels with the
+    # `provider` is nil for an entry whose id picks its provider, as OpenRouter's
+    # do, and the provider's name for a direct provider's entry. It travels with the
     # contender rather than being read back out of the id, so `typesafe/jev-router`
     # (Jev on OpenRouter) and a direct `typesafe/jev-latest` can never be confused.
     Contender = Data.define(:model, :effort, :temperature, :max_tokens, :provider) do
       def initialize(model:, effort: "default", temperature: "default", max_tokens: nil, provider: nil) = super
 
-      # @return [Boolean] whether the entry came from `direct:`
+      # @return [Boolean] whether the entry came from a direct provider's section
       def direct? = !provider.nil?
 
       # @return [String] unique across the lineup: "typesafe:typesafe/jev-latest" for a direct entry

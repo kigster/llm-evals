@@ -15,6 +15,14 @@ RSpec.describe LLM::Evals::Experiment do
   its(:dataset) { is_expected.to eq("colors") }
   it { expect { described_class.new(model: model, cases: [], adapter: adapter, scorer: scorer) }.to raise_error(ArgumentError, /at least one case/) }
 
+  describe "the run's time" do
+    it "leaves out waits on the limits, shared among the workers" do
+      allow(adapter).to(receive(:call).and_wrap_original { |call, *args, **opts| sleep(0.1); call.call(*args, **opts) })
+      allow(LLM::Evals::Throttle).to(receive(:measure).and_wrap_original { |measure, &block| [measure.call(&block).first, 0.1] })
+      expect(experiment.run.duration).to be_within(0.09).of(0)
+    end
+  end
+
   describe "#run" do
     subject(:summary) { experiment.run(on_case: ->(result) { ticks << result }) }
 

@@ -82,7 +82,7 @@ module LLM
         private
 
         # @return [Config] the lineup: --config, else the suite's
-        def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config])) : configuration.lineup
+        def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config]), providers:) : configuration.lineup
 
         # @return [Providers::Registry]
         def providers = configuration.providers
@@ -112,7 +112,7 @@ module LLM
 
         def experiment(contender, config, options, dataset:)
           Experiment.new(
-            model:       providers.model_for(contender),
+            model:       providers.model_for(contender, throttle: config.throttle),
             cases:       cases_for(options[:case], dataset: dataset),
             adapter:     configuration.adapter,
             scorer:      scorer,
@@ -183,7 +183,7 @@ module LLM
         def contenders(config, models, options)
           models = models.flat_map { it.split(",") }
           found = models.empty? ? config.contenders(overrides(options)) : config.contenders_for(models, overrides(options))
-          raise Error, "no models: list some under vendors in #{config.path}, or pass -m" if found.empty?
+          raise Error, "no models: list some under a provider in #{config.path}, or pass -m" if found.empty?
 
           admit(found, config)
         end
