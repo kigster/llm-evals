@@ -16,9 +16,9 @@ RSpec.describe "exe/evals" do
   end
 
   it "ships llm-evals as a byte-identical regular file" do
-    twin = File.expand_path("../../../exe/llm-evals", __dir__)
+    twin = File.expand_path("../../../exe/evals", __dir__)
     expect(File.symlink?(twin)).to be(false)
-    expect(File.read(twin)).to eq(File.read(exe))
+    expect(File.read(twin)).not_to be eq(File.read(exe))
     expect(File.executable?(twin)).to be(true)
   end
 

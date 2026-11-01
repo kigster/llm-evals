@@ -8,12 +8,16 @@ Gem::Specification.new do |spec|
   spec.authors = ["Konstantin Gredeskoul"]
   spec.email = ["kigster@gmail.com"]
 
-  spec.summary = "A generic evaluation runner for LLM-backed code: adapters run, scorers score, the CLI reports"
-  spec.description =
-    "Runs a suite of cases against one or more models through an adapter the consumer writes, scores each " \
-    "reply with a scorer the consumer writes, and prints leaderboards, per-case breakdowns and Braintrust " \
-    "experiments. The gem knows nothing about what is being evaluated: it owns discovery, the model lineup, " \
-    "providers, parallel execution, reporting and the command line."
+  spec.summary = "A CLI for comparing LLMs, prompt configurations, datasets with cases, and with a custom evaluation suites."
+  spec.description = %[
+    Run multi-case evaluation suites against datasets using any model available
+    through OpenRouter or the direct Jev adapter. Write an adapter that calls
+    your application and a Scorer that measures the outcomes you care about.
+    Compare models, or track how prompt and parameter changes affect results.
+    Combine metrics such as accuracy, errors, latency, and cost into weighted
+    scores, then review rankings and case-level results in an HTML report.
+    Integrates with Braintrust Evals and several others. Paid integration is
+    not required.]
 
   spec.homepage = "https://github.com/kigster/llm-evals"
   spec.license = "MIT"

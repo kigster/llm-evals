@@ -6,4 +6,9 @@
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 require "llm/evals"
 
-LLM::Evals::Launcher.new(ARGV).execute!
+puts "\e[1;31mERROR: \e[0;33mThis gem comes with an executable named 'evals'"
+puts "       You invoked 'llm-evals'. Please use 'evals' to use the gems's CLI.\n\e[0m"
+
+puts "Thanks for using llm-evals!"
+
+exit 0
