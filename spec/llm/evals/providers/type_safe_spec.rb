@@ -7,6 +7,8 @@ RSpec.describe LLM::Evals::Providers::TypeSafe do
     let(:model) { LLM::Evals::Model.new(id: "typesafe/jev-1.14.0", provider: provider, settings: {}) }
     let(:questions) { { "paid" => { type: "noul", instructions: "Was it paid?" } } }
 
+    before { stub_const("ENV", ENV.to_h.merge("TYPESAFE_API_KEY" => "test-key")) }
+
     def reply(klass, code, body, headers = {})
       klass.new("1.1", code, "").tap do |response|
         headers.each { |key, value| response[key] = value }
@@ -34,14 +36,35 @@ RSpec.describe LLM::Evals::Providers::TypeSafe do
       limited = described_class::HTTPError.new(reply(Net::HTTPTooManyRequests, "429", ""))
       overloaded = described_class::HTTPError.new(reply(Net::HTTPInternalServerError, "529", ""))
       invalid = described_class::HTTPError.new(reply(Net::HTTPUnprocessableEntity, "422", ""))
-      expect([limited, overloaded, Net::ReadTimeout.new, invalid, IOError.new].map { provider.retryable?(it) }).to eq([true, true, true, false, false])
+      retried = [limited, overloaded, Net::ReadTimeout.new, EOFError.new, IOError.new, OpenSSL::SSL::SSLError.new]
+      expect(retried.map { provider.retryable?(it) }).to all(be(true))
+      expect([invalid, ArgumentError.new].map { provider.retryable?(it) }).to all(be(false))
     end
 
     it "builds a bearer request" do
+      sent = nil
       http = instance_double(Net::HTTP)
       allow(Net::HTTP).to receive(:start).and_yield(http)
-      allow(http).to receive(:request) { |request| expect(request["Content-Type"]).to eq("application/json") and reply(Net::HTTPOK, "200", '{"answers":{}}') }
+      allow(http).to receive(:request) { |request| (sent = request) && reply(Net::HTTPOK, "200", '{"answers":{}}') }
       expect(provider.ask(model, state: "s", questions: questions).raw).to eq({})
+      expect([sent["Authorization"], sent["Content-Type"]]).to eq(["Bearer test-key", "application/json"])
+    end
+
+    it "refuses to call without a key" do
+      stub_const("ENV", {})
+      allow(Net::HTTP).to receive(:start)
+      expect { provider.ask(model, state: "s", questions: questions) }.to raise_error(LLM::Evals::Error, /TYPESAFE_API_KEY is not set/)
+      expect(Net::HTTP).not_to have_received(:start)
+    end
+
+    it "names the model when a 2xx is not JSON" do
+      allow(Net::HTTP).to receive(:start).and_return(reply(Net::HTTPOK, "200", "<html>"))
+      expect { provider.ask(model, state: "s", questions: questions) }.to raise_error(LLM::Evals::Error, /jev-1.14.0: unexpected TypeSafe answer, not JSON/)
+    end
+
+    it "names the model when a 2xx has no answers" do
+      allow(Net::HTTP).to receive(:start).and_return(reply(Net::HTTPOK, "200", "{}"))
+      expect { provider.ask(model, state: "s", questions: questions) }.to raise_error(LLM::Evals::Error, /jev-1.14.0: unexpected TypeSafe answer, no answers/)
     end
   end
 

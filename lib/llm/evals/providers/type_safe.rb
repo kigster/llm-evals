@@ -2,6 +2,7 @@
 
 require "json"
 require "net/http"
+require "openssl"
 
 module LLM
   module Evals
@@ -15,8 +16,6 @@ module LLM
       class TypeSafe < Base
         PREFIX = "typesafe/"
         URL = "https://api.typesafe.ai/v1/models"
-        ASK_URL = URI("https://api.typesafe.ai/v1/systemone")
-        READ_TIMEOUT = 120
         KEY = "TYPESAFE_API_KEY"
 
         # TypeSafe bills input tokens only: $0.042 per million for jev-latest
@@ -69,15 +68,14 @@ module LLM
         # @param questions [Hash{String => Hash}] by name: type, instructions, criteria
         # @return [Completion] `raw` holds the answers by name; `text` is them as JSON
         # @raise [HTTPError] on any status but 2xx
+        # @raise [Error] on a missing key, or a 2xx that is not a usable answer
         def ask(model, state:, questions:)
-          response = post({ model: model.name, state: state, questions: questions })
-          raise HTTPError, response unless response.is_a?(Net::HTTPSuccess)
-
-          body = JSON.parse(response.body)
+          body = client.ask({ model: model.name, state: state, questions: questions })
+          answers = body["answers"]
           tokens = body.fetch("usage", {})
-          Completion.new(text: JSON.generate(body.fetch("answers")),
+          Completion.new(text: JSON.generate(answers),
             usage: usage(input_tokens: tokens["input_tokens"].to_i, output_tokens: tokens["output_tokens"].to_i),
-            raw: body.fetch("answers"))
+            raw: answers)
         end
 
         # @param error [StandardError]
@@ -85,7 +83,7 @@ module LLM
         def retryable?(error)
           case error
           when HTTPError then error.status == 429 || error.status >= 500
-          when Net::OpenTimeout, Net::ReadTimeout, SocketError, SystemCallError then true
+          when Net::OpenTimeout, Net::ReadTimeout, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError then true
           else false
           end
         end
@@ -96,11 +94,7 @@ module LLM
 
         private
 
-        def post(payload)
-          request = Net::HTTP::Post.new(ASK_URL, "Authorization" => "Bearer #{ENV.fetch(KEY, nil)}", "Content-Type" => "application/json")
-          request.body = JSON.generate(payload)
-          Net::HTTP.start(ASK_URL.host, ASK_URL.port, use_ssl: true, read_timeout: READ_TIMEOUT) { it.request(request) }
-        end
+        def client = @client ||= Client.new
       end
     end
   end
