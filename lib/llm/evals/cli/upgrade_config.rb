@@ -22,7 +22,7 @@ module LLM
           raise Error, "no config file at #{path}" unless File.exist?(path)
 
           text = File.read(path)
-          upgrade = ConfigUpgrade.new(text)
+          upgrade = ConfigUpgrade.new(text, path:)
           return status_box(:info, "#{path} is already in the current format") unless upgrade.needed?
 
           upgraded = upgrade.call
@@ -32,8 +32,17 @@ module LLM
           raise Error, "#{backup} already exists; move it away first" if File.exist?(backup)
 
           File.write(backup, text)
-          File.write(path, upgraded)
+          replace(path, upgraded)
           status_box(:success, "#{path} upgraded; the old file is #{backup}")
+        end
+
+        private
+
+        # A rename, so that a failed write cannot leave half a lineup.
+        def replace(path, text)
+          temporary = "#{path}.tmp"
+          File.write(temporary, text)
+          File.rename(temporary, path)
         end
       end
     end

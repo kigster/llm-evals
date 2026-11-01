@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe LLM::Evals::ConfigUpgrade do
-  subject(:upgraded) { described_class.new(text).call }
+  subject(:upgraded) { described_class.new(text, path: "lineup.yml").call }
 
   let(:text) do
     <<~YAML
@@ -49,7 +49,7 @@ RSpec.describe LLM::Evals::ConfigUpgrade do
   context "with a file in the new shape" do
     let(:text) { "openrouter:\n  vendors: {}\n" }
 
-    it { expect(described_class.new(text)).not_to be_needed }
+    it { expect(described_class.new(text, path: "lineup.yml")).not_to be_needed }
   end
 
   context "with a form the rewrite cannot prove" do
@@ -62,5 +62,17 @@ RSpec.describe LLM::Evals::ConfigUpgrade do
     let(:text) { "vendors:\n  a:\n    - model: b\nopenrouter:\n  vendors: {}\n" }
 
     it { expect { upgraded }.to raise_error(LLM::Evals::Error, /a section named openrouter/) }
+  end
+
+  context "with text that is not YAML" do
+    let(:text) { "a: [" }
+
+    it { expect { upgraded }.to raise_error(LLM::Evals::Error, /lineup.yml: not valid YAML/) }
+  end
+
+  context "with a list at the top" do
+    let(:text) { "- a\n" }
+
+    it { expect { upgraded }.to raise_error(LLM::Evals::Error, /lineup.yml: a lineup must be a mapping/) }
   end
 end

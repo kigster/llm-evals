@@ -686,6 +686,17 @@ RSpec.describe LLM::Evals::Launcher do
       expect(File.read("#{lineup}.bak")).to eq(old)
     end
 
+    it "reports a missing file" do
+      FileUtils.rm(lineup)
+      run_cli
+      expect(stderr.string).to include("no config file at")
+    end
+
+    it "leaves no temporary file" do
+      run_cli
+      expect(File.exist?("#{lineup}.tmp")).to be(false)
+    end
+
     it "refuses to overwrite an earlier backup" do
       File.write("#{lineup}.bak", "precious")
       run_cli

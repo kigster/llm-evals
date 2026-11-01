@@ -10,12 +10,20 @@ module LLM
     # anything is written.
     class ConfigUpgrade
       TOP_KEY = /\A[\w-]+:/
+      VENDORS = /\Avendors:(?<rest>.*)/m
+      DIRECT = /\Adirect:\s*(?<comment>#.*)?\n?\z/
       GROUP = /\A  ([\w-]+):([^\n]*)\n?\z/
 
       # @param text [String] the lineup as it is
-      def initialize(text)
+      # @param path [String] named in every error
+      # @raise [Error] when the text is not YAML, or not a mapping
+      def initialize(text, path:)
         @text = text
+        @path = path
         @data = YAML.safe_load(text) || {}
+        raise Error, "#{path}: a lineup must be a mapping, not a #{@data.class.name.downcase}" unless @data.is_a?(Hash)
+      rescue Psych::SyntaxError => e
+        raise Error, "#{path}: not valid YAML: #{e.message}"
       end
 
       # @return [Boolean] whether the lineup still has the old keys
@@ -25,26 +33,34 @@ module LLM
       # @raise [Error] when the rewrite would change what the file means
       def call
         taken = [("openrouter" if @data.key?("vendors")), *(@data["direct"] || {}).keys].compact & @data.keys
-        raise Error, "cannot upgrade: the file has both the old keys and a section named #{taken.join(", ")}" if taken.any?
+        raise Error, "#{@path}: cannot upgrade: the file has both the old keys and a section named #{taken.join(", ")}" if taken.any?
 
         rewritten = rewrite
-        return rewritten if (YAML.safe_load(rewritten) rescue nil) == expected # rubocop:disable Style/RescueModifier
+        return rewritten if same_meaning?(rewritten)
 
-        raise Error, "cannot upgrade: vendors: or direct: is not in the plain list form; move them by hand"
+        raise Error, "#{@path}: cannot upgrade: vendors: or direct: is not in the plain list form; move them by hand"
       end
 
       private
+
+      def same_meaning?(rewritten)
+        YAML.safe_load(rewritten) == expected
+      rescue Psych::SyntaxError
+        false
+      end
 
       def rewrite
         section = nil
         @text.lines.flat_map do |line|
           section = nil if line.match?(TOP_KEY)
-          case line
-          when /\Avendors:(.*)/m then section = :vendors
-                                      ["openrouter:#{$1}", "  vendors:\n"]
-          when /\Adirect:\s*(#.*)?\n?\z/ then section = :direct
-                                              $1 ? ["#{$1}\n"] : []
-          else moved(section, line)
+          if (vendors = VENDORS.match(line))
+            section = :vendors
+            ["openrouter:#{vendors[:rest]}", "  vendors:\n"]
+          elsif (direct = DIRECT.match(line))
+            section = :direct
+            direct[:comment] ? ["#{direct[:comment]}\n"] : []
+          else
+            moved(section, line)
           end
         end.join
       end
