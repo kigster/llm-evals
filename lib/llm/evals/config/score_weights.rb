@@ -3,7 +3,7 @@
 module LLM
   module Evals
     class Config
-      # The `weighted_score:` section; see {WeightedScore}.
+      # The `weighted_score:` section; see {Scoring::WeightedScore}.
       module ScoreWeights
         # @param section [Object, nil] the section as the file has it
         # @param path [String] names the file in an error

@@ -15,13 +15,13 @@ module LLM
         # @return [Registry] Braintrust and Logfire
         def self.default = new([Braintrust, Logfire])
 
-        # @param classes [Array<Class<Tracker>>]
+        # @param classes [Array<Class<Base>>]
         def initialize(classes = [])
           @classes = classes.dup
         end
 
-        # @param klass [Class<Tracker>] replaces one registered under the same name
-        # @return [Class<Tracker>]
+        # @param klass [Class<Base>] replaces one registered under the same name
+        # @return [Class<Base>]
         def register(klass)
           @classes.reject! { it.tracker_name == klass.tracker_name }
           @classes << klass
@@ -34,7 +34,7 @@ module LLM
         def names = map(&:tracker_name)
 
         # @param name [String, Symbol]
-        # @return [Class<Tracker>]
+        # @return [Class<Base>]
         # @raise [Error] naming the known trackers
         def named(name)
           find { it.tracker_name == name.to_s } || raise(Error, "no tracker named #{name.to_s.inspect}; known: #{names.join(", ")}")
@@ -49,7 +49,7 @@ module LLM
         # @param config [String, nil] the config file's `tracker:`
         # @param env [Hash]
         # @param local [Boolean] `--local`
-        # @return [Array(Class<Tracker>, String), nil] the class and why it was chosen; nil for none
+        # @return [Array(Class<Base>, String), nil] the class and why it was chosen; nil for none
         # @raise [Error] on an unknown name or an ambiguous environment
         def choose(flag: nil, config: nil, env: ENV, local: false)
           return nil if local

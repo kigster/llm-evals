@@ -16,7 +16,7 @@ module LLM
             @leaderboard = leaderboard
           end
 
-          # @param summaries [Array<Experiment::Summary>]
+          # @param summaries [Array<Actions::Experiment::Summary>]
           # @param output [String, nil]
           # @param scores [Boolean]
           # @param totals_mode [String] overall, variant or both

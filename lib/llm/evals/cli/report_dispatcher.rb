@@ -20,7 +20,7 @@ module LLM
         # @param config [Config]
         # @param options [Hash] the parsed flags
         # @param providers [Providers::Registry]
-        # @param runtime [Runtime]
+        # @param runtime [Runtime::Environment]
         # @param suite [String] names the files when the run has no project
         # @param console [Console]
         # @param invocation [Dry::CLI::UI::Invocation]
@@ -34,9 +34,9 @@ module LLM
           @invocation = invocation
         end
 
-        # @param summaries [Array<Experiment::Summary>]
-        # @param metrics [Array<Metric>]
-        # @param weighted_score [WeightedScore, nil]
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @param metrics [Array<Scoring::Metric>]
+        # @param weighted_score [Scoring::WeightedScore, nil]
         # @param run_options [Hash]
         # @param output [String, nil] what -o was given: nil, "-", "" for the default file, or a path
         # @param open [Boolean]

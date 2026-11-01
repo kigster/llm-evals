@@ -26,8 +26,8 @@ module LLM
 
         # A new one each time, since a budget counts one run's calls.
         #
-        # @return [ErrorBudget]
-        def budget = ErrorBudget.new(total:, percent:)
+        # @return [Actions::ErrorBudget]
+        def budget = Actions::ErrorBudget.new(total:, percent:)
       end
     end
   end

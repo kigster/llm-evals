@@ -14,7 +14,7 @@ module LLM
           Result = Data.define(:json_path, :html_path, :css_path, :js_path, :browser_opened)
 
           # @param providers [Providers::Registry]
-          # @param runtime [Runtime]
+          # @param runtime [Runtime::Environment]
           # @param destination [String]
           # @param temp_dir [String]
           # @param project [String]
@@ -26,9 +26,9 @@ module LLM
             @project = project.to_s.downcase.gsub(/[^a-z0-9]+/, "-").delete_prefix("-").delete_suffix("-")
           end
 
-          # @param summaries [Array<Experiment::Summary>]
-          # @param metrics [Array<Metric>]
-          # @param weighted_score [WeightedScore, nil]
+          # @param summaries [Array<Actions::Experiment::Summary>]
+          # @param metrics [Array<Scoring::Metric>]
+          # @param weighted_score [Scoring::WeightedScore, nil]
           # @param run_options [Hash]
           # @param autosave [Boolean]
           # @param display [String]
@@ -59,9 +59,9 @@ module LLM
             FileUtils.rm_f(json_path) if defined?(json_path) && json_path && !autosave
           end
 
-          # @param summaries [Array<Experiment::Summary>]
-          # @param metrics [Array<Metric>]
-          # @param weighted_score [WeightedScore, nil]
+          # @param summaries [Array<Actions::Experiment::Summary>]
+          # @param metrics [Array<Scoring::Metric>]
+          # @param weighted_score [Scoring::WeightedScore, nil]
           # @param run_options [Hash]
           # @param path [String, nil] nil returns JSON text to the caller
           # @return [String, nil] JSON text when no path was supplied
@@ -94,9 +94,9 @@ module LLM
           # Writes an explicitly requested JSON report under the configured
           # destination, using the same timestamped name as an autosaved result.
           #
-          # @param summaries [Array<Experiment::Summary>]
-          # @param metrics [Array<Metric>]
-          # @param weighted_score [WeightedScore, nil]
+          # @param summaries [Array<Actions::Experiment::Summary>]
+          # @param metrics [Array<Scoring::Metric>]
+          # @param weighted_score [Scoring::WeightedScore, nil]
           # @param run_options [Hash]
           # @return [String] the saved JSON path
           def save_json(summaries:, metrics:, weighted_score:, run_options:)

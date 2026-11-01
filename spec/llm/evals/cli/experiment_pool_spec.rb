@@ -3,16 +3,16 @@
 RSpec.describe LLM::Evals::CLI::ExperimentPool do
   subject(:pool) { described_class.new(console: nil, colors: LLM::Evals::CLI::ModelColors.new, warnings:) }
 
-  let(:warnings) { LLM::Evals::Warnings.new }
+  let(:warnings) { LLM::Evals::Results::Warnings.new }
   let(:bars) { instance_double(LLM::Evals::CLI::ProgressBars) }
   let(:handle) { Class.new { def advance(as:) = (@advances ||= []) << as; attr_reader :advances }.new }
   let(:multi) do
     bar = handle
     Class.new { define_method(:progress) { |_label, **, &block| block.call(bar) } }.new
   end
-  let(:summary) { instance_double(LLM::Evals::Experiment::Summary, name: "exp", errors: ["boom"]) }
-  let(:result) { instance_double(LLM::Evals::RunResult, errored?: true) }
-  let(:run) { instance_double(LLM::Evals::Experiment, cases: [1]) }
+  let(:summary) { instance_double(LLM::Evals::Actions::Experiment::Summary, name: "exp", errors: ["boom"]) }
+  let(:result) { instance_double(LLM::Evals::Results::RunResult, errored?: true) }
+  let(:run) { instance_double(LLM::Evals::Actions::Experiment, cases: [1]) }
 
   before do
     allow(LLM::Evals::CLI::ProgressBars).to receive_messages(for: bars, labels: ["label"])
@@ -50,13 +50,13 @@ RSpec.describe LLM::Evals::CLI::ExperimentPool do
   end
 
   it "charges each result to the budget" do
-    budget = LLM::Evals::ErrorBudget.new(total: 1)
+    budget = LLM::Evals::Actions::ErrorBudget.new(total: 1)
     pool.call([run], concurrency: 1, budget:)
     expect(budget).to be_spent
   end
 
   it "skips an experiment once the budget is spent" do
-    budget = instance_double(LLM::Evals::ErrorBudget, spent?: true)
+    budget = instance_double(LLM::Evals::Actions::ErrorBudget, spent?: true)
     expect(pool.call([run], concurrency: 1, budget:).summaries).to be_empty
     expect(run).not_to have_received(:run)
   end

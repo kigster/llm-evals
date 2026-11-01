@@ -55,7 +55,7 @@ module LLM
         # the widest of its column, so that every model starts in one column:
         # `[01-bookkeeping-cfo]  effort=low t=0.2 | moonshotai/kimi-k3`.
         #
-        # @param runs [Array<Experiment>]
+        # @param runs [Array<Actions::Experiment>]
         # @return [Array<String>] in the order given
         def self.labels(runs)
           datasets = runs.map { "[#{it.dataset}]" }

@@ -8,24 +8,24 @@ module LLM
       class ExperimentPool
         # @param console [Dry::CLI::UI::Console]
         # @param colors [ModelColors]
-        # @param warnings [Warnings]
+        # @param warnings [Results::Warnings]
         def initialize(console:, colors:, warnings:)
           @console = console
           @colors = colors
           @warnings = warnings
         end
 
-        # @param runs [Array<Experiment>]
+        # @param runs [Array<Actions::Experiment>]
         # @param concurrency [Integer] experiments at once; 0 runs them all together
-        # @param budget [ErrorBudget, nil] stops the run once spent
-        # @return [RunOutcome]
+        # @param budget [Actions::ErrorBudget, nil] stops the run once spent
+        # @return [Results::RunOutcome]
         def call(runs, concurrency:, budget: nil)
           summaries = Array.new(runs.size)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           @warnings.capture { bars(runs, summaries, concurrency, budget) }
           seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
           summaries.compact.each { |s| s.errors.each { @warnings.record("[#{s.name}] #{it}") } }
-          RunOutcome.new(summaries: summaries.compact, seconds:)
+          Results::RunOutcome.new(summaries: summaries.compact, seconds:)
         end
 
         private

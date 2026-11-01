@@ -33,13 +33,13 @@ module LLM
 
         def each(&) = @providers.reverse.each(&)
 
-        # @param target [Contender, String] a contender, or a model id
+        # @param target [Models::Contender, String] a contender, or a model id
         # @return [Base]
         # @raise [Error] when no provider serves it
         def for(target)
-          return direct(target.provider) if target.is_a?(Contender) && target.direct?
+          return direct(target.provider) if target.is_a?(Models::Contender) && target.direct?
 
-          model_id = target.is_a?(Contender) ? target.model : target
+          model_id = target.is_a?(Models::Contender) ? target.model : target
           find { !it.direct? && it.serves?(model_id) } ||
             raise(Error, "no provider serves #{model_id.inspect}; have #{reject(&:direct?).map(&:name).join(", ")}")
         end
@@ -55,18 +55,18 @@ module LLM
         # @return [Array<String>] the direct providers' names
         def direct_names = select(&:direct?).map(&:name)
 
-        # @param contenders [Array<Contender>]
+        # @param contenders [Array<Models::Contender>]
         # @return [Array<Base>] each provider the contenders use, once
         def used_by(contenders) = contenders.map { self.for(it) }.uniq
 
-        # @param contenders [Array<Contender>]
+        # @param contenders [Array<Models::Contender>]
         # @return [Array<String>] the API keys the contenders' providers need
         def keys_for(contenders) = used_by(contenders).flat_map(&:env_keys).uniq
 
-        # @param contender [Contender]
-        # @param throttle [Throttle]
-        # @return [Model]
-        def model_for(contender, throttle: Throttle.new) = self.for(contender).model_for(contender, throttle:)
+        # @param contender [Models::Contender]
+        # @param throttle [Models::Throttle]
+        # @return [Models::Model]
+        def model_for(contender, throttle: Models::Throttle.new) = self.for(contender).model_for(contender, throttle:)
 
         # One refused contender: who, and why.
         Refusal = Data.define(:contender, :reason) do
@@ -78,9 +78,9 @@ module LLM
         # is named, never run, and never scored 0: a model the suite cannot
         # even ask is not a model that answered wrongly.
         #
-        # @param contenders [Array<Contender>]
+        # @param contenders [Array<Models::Contender>]
         # @param request_types [Array<Symbol>] what the suite's config declares
-        # @return [Array(Array<Contender>, Array<Refusal>)] admitted, refused
+        # @return [Array(Array<Models::Contender>, Array<Refusal>)] admitted, refused
         def admit(contenders, request_types:)
           admitted, refused = contenders.partition { request_types.include?(self.for(it).request_type) }
           refusals = refused.map do |contender|
@@ -96,7 +96,7 @@ module LLM
         # Asks each provider in use for its catalog, and names every model it
         # does not list.
         #
-        # @param contenders [Array<Contender>]
+        # @param contenders [Array<Models::Contender>]
         # @return [void]
         # @raise [Error] naming every unknown model
         def verify!(contenders)

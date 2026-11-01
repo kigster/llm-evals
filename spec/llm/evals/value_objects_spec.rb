@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe "value objects" do
-  describe LLM::Evals::Usage do
+  describe LLM::Evals::Stats::Usage do
     it { expect(described_class.zero).to have_attributes(input_tokens: 0, output_tokens: 0, cost_usd: 0.0) }
     it { expect(described_class.from(nil)).to eq(described_class.zero) }
     it { expect(described_class.from("input_tokens" => 3, "cost_usd" => "0.5")).to have_attributes(input_tokens: 3, cost_usd: 0.5) }
@@ -17,19 +17,19 @@ RSpec.describe "value objects" do
     end
   end
 
-  describe LLM::Evals::Completion do
+  describe LLM::Evals::Results::ProviderResponse do
     it "defaults the usage and stringifies the text" do
-      expect(described_class.new(text: 42)).to have_attributes(text: "42", usage: LLM::Evals::Usage.zero, raw: nil)
+      expect(described_class.new(text: 42)).to have_attributes(text: "42", usage: LLM::Evals::Stats::Usage.zero, raw: nil)
     end
   end
 
-  describe LLM::Evals::Reply do
+  describe LLM::Evals::Results::Reply do
     it { expect(described_class.new(output: {})).not_to be_error }
     it { expect(described_class.new(error: "no JSON")).to be_error }
     it { expect(described_class.new(usage: { input_tokens: 5 }).usage.input_tokens).to eq(5) }
   end
 
-  describe LLM::Evals::Metric do
+  describe LLM::Evals::Scoring::Metric do
     subject(:metric) { described_class.new(name: :accuracy, description: "d", primary: true) }
 
     its(:name) { is_expected.to eq("accuracy") }
@@ -39,7 +39,7 @@ RSpec.describe "value objects" do
     it { expect { described_class.new(name: "x", aggregate: :median) }.to raise_error(ArgumentError, /aggregate/) }
   end
 
-  describe LLM::Evals::Score do
+  describe LLM::Evals::Results::Score do
     it "keeps the metrics by string name" do
       expect(described_class.new(value: 1, metrics: { accuracy: 1.0 }).metrics).to eq("accuracy" => 1.0)
     end
@@ -48,20 +48,20 @@ RSpec.describe "value objects" do
     it { expect { described_class.new(value: nil) }.to raise_error(ArgumentError, /not within 0..1/) }
 
     it "builds the zero score of a failed reply" do
-      metrics = [LLM::Evals::Metric.new(name: "a"), LLM::Evals::Metric.new(name: "b")]
+      metrics = [LLM::Evals::Scoring::Metric.new(name: "a"), LLM::Evals::Scoring::Metric.new(name: "b")]
       expect(described_class.failed(metrics, "no JSON"))
         .to have_attributes(value: 0.0, metrics: { "a" => 0.0, "b" => 0.0 }, diagnostics: { "error" => "no JSON" })
     end
   end
 
-  describe LLM::Evals::RunResult do
+  describe LLM::Evals::Results::RunResult do
     let(:kase) { LLM::Evals.configuration.discovery.all.first }
 
     it { expect(described_class.new(experiment: nil, case: kase, error: "boom")).to be_failed }
     it { expect(described_class.new(experiment: nil, case: kase)).not_to be_failed }
   end
 
-  describe LLM::Evals::Case do
+  describe LLM::Evals::Datasets::Case do
     subject(:kase) { LLM::Evals.configuration.discovery.cases(dataset: "colors").first }
 
     its(:id) { is_expected.to eq("clear/001") }

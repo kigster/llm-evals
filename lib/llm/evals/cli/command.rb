@@ -21,10 +21,10 @@ module LLM
 
         private
 
-        # @return [Configuration] the suite, which must be loaded
+        # @return [Runtime::Configuration] the suite, which must be loaded
         def configuration = LLM::Evals.configuration.require_suite!
 
-        # @return [Discovery]
+        # @return [Datasets::Discovery]
         def discovery = configuration.discovery
 
         # @see Table#render

@@ -6,7 +6,7 @@ RSpec.describe LLM::Evals::Trackers::Local do
   let(:dir) { File.join(Dir.mktmpdir, "log") }
   let(:configuration) { LLM::Evals.configuration }
   let(:experiment) do
-    LLM::Evals::Experiment.new(model: LLM::Evals::Testing::FakeModel.new(junk: ["vague/002"]),
+    LLM::Evals::Actions::Experiment.new(model: LLM::Evals::Testing::FakeModel.new(junk: ["vague/002"]),
       cases: configuration.discovery.cases(dataset: "colors"),
       adapter: configuration.adapter,
       scorer: configuration.scorer,

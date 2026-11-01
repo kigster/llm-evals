@@ -21,7 +21,7 @@ module LLM
         # @return [Array<Entry>] in the file's order
         attr_reader :entries
 
-        # @return [Hash{String => Throttle::Limit}] by scope
+        # @return [Hash{String => Models::Throttle::Limit}] by scope
         attr_reader :limits
 
         # @param data [Hash] the whole file
@@ -98,7 +98,7 @@ module LLM
           end
           raise Error, "#{path}: rate_limit of #{scope} is set twice; a model listed twice shares one limit, so set it once" if @limits.key?(scope)
 
-          @limits[scope] = Throttle::Limit.new(burst:, per_minute:)
+          @limits[scope] = Models::Throttle::Limit.new(burst:, per_minute:)
         end
       end
     end

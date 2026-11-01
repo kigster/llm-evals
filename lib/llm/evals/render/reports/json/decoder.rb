@@ -35,20 +35,20 @@ module LLM
             private
 
             def metric(data)
-              Metric.new(name: data.fetch("name"),
+              Scoring::Metric.new(name: data.fetch("name"),
                 description: data.fetch("description", ""),
                 aggregate: data.fetch("aggregate", "mean").to_sym,
                 primary: data.fetch("primary", false))
             end
 
             def weighted_score(weights, metrics)
-              WeightedScore.new(weights, metrics: metrics.map(&:name)) if weights && !weights.empty?
+              Scoring::WeightedScore.new(weights, metrics: metrics.map(&:name)) if weights && !weights.empty?
             end
 
             def summary(data)
               model = model(data.fetch("model"))
               experiment = SavedExperiment.new(model:)
-              Experiment::Summary.new(model:,
+              Actions::Experiment::Summary.new(model:,
                 dataset: data.fetch("dataset"),
                 name: data.fetch("name"),
                 means: data.fetch("means"),
@@ -56,18 +56,18 @@ module LLM
                 errors: data.fetch("errors", []),
                 duration: data.fetch("duration", 0.0),
                 permalink: data["permalink"],
-                usage: Usage.from(data["usage"]))
+                usage: Stats::Usage.from(data["usage"]))
             end
 
             def model(data)
               provider = @providers.find { it.name == data.fetch("provider") }
               raise Error, "report uses unknown provider #{data.fetch("provider").inspect}" unless provider
 
-              Model.new(id: data.fetch("id"), provider:, settings: data.fetch("settings", {}))
+              Models::Model.new(id: data.fetch("id"), provider:, settings: data.fetch("settings", {}))
             end
 
             def result(data, experiment)
-              RunResult.new(experiment:,
+              Results::RunResult.new(experiment:,
                 case: kase(data.fetch("case")),
                 reply: reply(data["reply"]),
                 score: score(data["score"]),
@@ -76,7 +76,7 @@ module LLM
             end
 
             def kase(data)
-              Case.new(id: data.fetch("id"),
+              Datasets::Case.new(id: data.fetch("id"),
                 dataset: data.fetch("dataset"),
                 variant: data.fetch("variant"),
                 input: data.fetch("input"),
@@ -88,13 +88,13 @@ module LLM
             def reply(data)
               return unless data
 
-              Reply.new(output: data["output"], raw: data["raw"], usage: data["usage"], error: data["error"], metadata: data["metadata"] || {})
+              Results::Reply.new(output: data["output"], raw: data["raw"], usage: data["usage"], error: data["error"], metadata: data["metadata"] || {})
             end
 
             def score(data)
               return unless data
 
-              Score.new(value: data.fetch("value"),
+              Results::Score.new(value: data.fetch("value"),
                 metrics: data["metrics"] || {},
                 outcomes: data["outcomes"] || {},
                 diagnostics: data["diagnostics"] || {})

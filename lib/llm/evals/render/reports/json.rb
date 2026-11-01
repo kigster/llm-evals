@@ -14,9 +14,9 @@ module LLM
           Loaded = Data.define(:suite, :generated_at, :run_options, :summaries, :metrics, :weighted_score)
           SavedExperiment = Data.define(:model)
 
-          # @param summaries [Array<Experiment::Summary>]
-          # @param metrics [Array<Metric>]
-          # @param weighted_score [WeightedScore, nil]
+          # @param summaries [Array<Actions::Experiment::Summary>]
+          # @param metrics [Array<Scoring::Metric>]
+          # @param weighted_score [Scoring::WeightedScore, nil]
           # @param run_options [Hash]
           # @return [String]
           def self.dump(summaries, metrics:, weighted_score: nil, run_options: {})

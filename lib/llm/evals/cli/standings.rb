@@ -11,9 +11,9 @@ module LLM
 
         attr_reader :metrics, :primary, :weighted
 
-        # @param metrics [Array<Metric>]
-        # @param primary [Metric] the metric the ranking reads
-        # @param weighted [WeightedScore, nil] nil when the file sets no weights
+        # @param metrics [Array<Scoring::Metric>]
+        # @param primary [Scoring::Metric] the metric the ranking reads
+        # @param weighted [Scoring::WeightedScore, nil] nil when the file sets no weights
         def initialize(metrics:, primary:, weighted: nil)
           @metrics = metrics
           @primary = primary
@@ -37,14 +37,14 @@ module LLM
 
         # Each contender's numbers over the given experiments, best first.
         #
-        # @param summaries [Array<Experiment::Summary>]
+        # @param summaries [Array<Actions::Experiment::Summary>]
         # @return [Array<Hash>]
         def contender_groups(summaries)
           groups = summaries.group_by { [it.model.key, it.model.effort, it.model.temperature] }.values.map do |group|
             values = group.filter_map { it.mean(primary) }
             { first: group.first, errors: group.sum { it.errors.size },
               value: values.size == group.size ? values.sum / values.size : nil,
-              usage: group.map(&:usage).reduce(Usage.zero, :+),
+              usage: group.map(&:usage).reduce(Stats::Usage.zero, :+),
               row:   overall_row(group) }
           end
           scores = weighted_by(groups.map { it[:row] })
@@ -56,8 +56,8 @@ module LLM
         # @return [Integer, nil] the index of the best value
         def best_contender(groups) = best_value(groups.map { [it[:value], it[:usage].cost_usd, it[:errors]] })
 
-        # @param summaries [Array<Experiment::Summary>]
-        # @return [Hash{Experiment::Summary => Float, nil}] by identity, each compared within its dataset
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @return [Hash{Actions::Experiment::Summary => Float, nil}] by identity, each compared within its dataset
         def weighted_scores(summaries)
           summaries.group_by(&:dataset).values.each_with_object({}.compare_by_identity) do |group, scores|
             group.zip(weighted_by(group.map { weighted_row(it) })).each { |summary, value| scores[summary] = value }
@@ -66,7 +66,7 @@ module LLM
 
         # The best value in each dataset's block of the leaderboard.
         #
-        # @param ranked [Array<Experiment::Summary>]
+        # @param ranked [Array<Actions::Experiment::Summary>]
         # @return [Array<Integer>] indices into ranked
         def best_per_dataset(ranked)
           ranked.each_index.group_by { ranked[it].dataset }.values.filter_map do |indices|
@@ -77,9 +77,9 @@ module LLM
 
         private
 
-        # What {WeightedScore} reads from one experiment.
+        # What {Scoring::WeightedScore} reads from one experiment.
         #
-        # @param summary [Experiment::Summary]
+        # @param summary [Actions::Experiment::Summary]
         # @return [Hash{String => Numeric, nil}]
         def weighted_row(summary)
           metrics.to_h { [it.name, summary.mean(it)] }.merge(
@@ -94,7 +94,7 @@ module LLM
 
         # One contender over every dataset: errors and magnitudes add up, the rest average.
         #
-        # @param group [Array<Experiment::Summary>]
+        # @param group [Array<Actions::Experiment::Summary>]
         # @return [Hash{String => Numeric, nil}]
         def overall_row(group)
           rows = group.map { weighted_row(it) }
@@ -103,7 +103,7 @@ module LLM
             total = values.sum(&:to_f)
             next [name, nil] if values.any?(&:nil?)
 
-            [name, WeightedScore::SUMMED.include?(name) ? total : total / values.size]
+            [name, Scoring::WeightedScore::SUMMED.include?(name) ? total : total / values.size]
           end
         end
 

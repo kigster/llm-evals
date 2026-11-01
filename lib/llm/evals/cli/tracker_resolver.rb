@@ -6,7 +6,7 @@ module LLM
       # Where a run's results go: the local JSON log, always, then one remote
       # tracker if any, chosen once per run.
       class TrackerResolver
-        # @param configuration [Configuration]
+        # @param configuration [Runtime::Configuration]
         # @param config [Config]
         # @param options [Hash] the parsed flags
         # @param err [IO] says which tracker was chosen, under --verbose
@@ -21,7 +21,7 @@ module LLM
 
         # --tracker, then tracker: in the config, then the environment. --local is none.
         #
-        # @return [Class<Tracker>, nil]
+        # @return [Class<Trackers::Base>, nil]
         def remote
           return @remote if defined?(@remote)
 
@@ -35,7 +35,7 @@ module LLM
 
         # Each experiment gets instances of its own.
         #
-        # @return [Array<Tracker>]
+        # @return [Array<Trackers::Base>]
         def for_experiment
           context = { suite: @configuration.name, project:, project_id: @options[:project] ? nil : Trackers::Braintrust.project_id(@env) }
           local = Trackers::Local.new(dir: File.join(Dry::CLI::UI::Invocation.root(Dir.pwd), "log", "llm-evals"), **context)

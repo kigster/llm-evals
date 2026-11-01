@@ -15,11 +15,11 @@ module LLM
         # @param model [String]
         # @param entry [Hash{String => Object}] the model's settings in the file
         # @param provider [Symbol, nil]
-        # @return [Array<Contender>]
+        # @return [Array<Models::Contender>]
         def call(model, entry = {}, provider: nil)
           settings = @defaults.merge(entry).merge(@overrides)
           Array(settings["effort"]).product(Array(settings["temperature"])).map do |effort, temperature|
-            Contender.new(model:, effort: effort.to_s, temperature:, max_tokens: Integer(settings["max_tokens"]), provider:)
+            Models::Contender.new(model:, effort: effort.to_s, temperature:, max_tokens: Integer(settings["max_tokens"]), provider:)
           end
         end
       end

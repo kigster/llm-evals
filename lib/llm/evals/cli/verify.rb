@@ -9,7 +9,7 @@ module LLM
 
         def call(**)
           all = discovery.all
-          failures = LLM::Evals::Verify.new(configuration).problems
+          failures = LLM::Evals::Actions::Verify.new(configuration).problems
           if failures.empty?
             status_box :success, "#{all.size} cases verified across #{discovery.datasets.join(", ")}"
             return
