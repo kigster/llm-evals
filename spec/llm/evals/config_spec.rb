@@ -107,6 +107,26 @@ RSpec.describe LLM::Evals::Config do
       allow(LLM::Evals::Throttle).to receive(:new).and_call_original
     end
 
+    it "is one throttle, for every model of a run to share" do
+      first = config.throttle
+      expect(config.throttle).to be(first)
+    end
+
+    it "refuses a model that sets its limit twice" do
+      File.write(path, "typesafe:\n  models:\n    - model: jev\n      rate_limit: { burst: 1, per_minute: 1 }\n    - model: jev\n      rate_limit: { burst: 2, per_minute: 2 }\n")
+      expect { config.throttle }.to raise_error(LLM::Evals::Error, %r{rate_limit of typesafe/jev is set twice})
+    end
+
+    it "lets a model be listed twice when it sets its limit once" do
+      File.write(path, "typesafe:\n  models:\n    - model: jev\n      rate_limit: { burst: 1, per_minute: 1 }\n    - model: jev\n      effort: low\n")
+      expect(config.contenders.size).to eq(2)
+    end
+
+    it "refuses a bad limit when only the contenders are asked for" do
+      File.write(path, "openrouter:\n  rate_limit: { burst: 10 }\n  vendors: {}\n")
+      expect { config.contenders }.to raise_error(LLM::Evals::Error, /rate_limit of openrouter needs burst and per_minute/)
+    end
+
     it "keys each limit by provider, vendor and model" do
       config.throttle
       expect(LLM::Evals::Throttle).to have_received(:new).with(
