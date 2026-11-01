@@ -100,6 +100,7 @@ module LLM
         # @raise [Error] on a bad weight
         def weigh(config)
           config.results # validate output settings before model calls start
+          config.error_budget
           weights = config.score_weights
           @weighted = weights.empty? ? nil : WeightedScore.new(weights, metrics: metrics.map(&:name))
         end
@@ -221,10 +222,12 @@ module LLM
         #
         # @param runs [Array<Experiment>]
         # @param concurrency [Integer] experiments at once; 0 runs them all together
+        # @param budget [ErrorBudget, nil] stops the run once spent
         # @return [Array<Experiment::Summary>]
-        def execute(runs, concurrency:)
+        def execute(runs, concurrency:, budget: nil)
           summaries = Array.new(runs.size)
-          warnings.capture { bars(runs, summaries, concurrency) }
+          @budget = budget
+          warnings.capture { bars(runs, summaries, concurrency, budget) }
           summaries.compact.each { |s| s.errors.each { warnings.record("[#{s.name}] #{it}") } }
           summaries.compact
         end
@@ -242,16 +245,30 @@ module LLM
           raise Error, "--concurrency must be a whole number, got #{value.inspect}"
         end
 
+        # Fails the command, after its report, when the error budget ran out.
+        #
+        # @return [void]
+        # @raise [Error] naming the limit
+        def abort_if_spent
+          raise Error, @budget.reason if @budget&.spent?
+        end
+
         # @return [Warnings] what this command has held back from the screen
         def warnings = @warnings ||= Warnings.new
 
-        def bars(runs, summaries, concurrency)
+        def bars(runs, summaries, concurrency, budget)
           ProgressBars.for(ui, colors: model_colors).run("Running #{runs.size} experiment#{"s" unless runs.size == 1}",
             concurrent: concurrency.zero? || concurrency) do |multi|
             labels = ProgressBars.labels(runs)
             runs.each_with_index do |run, index|
               multi.progress(labels[index], total: run.cases.size) do |bar|
-                summaries[index] = run.run(on_case: ->(result) { bar.advance(as: result.errored? ? :failed : :ok) })
+                next if budget&.spent?
+
+                summaries[index] = run.run(stop: -> { budget&.spent? },
+                  on_case: lambda { |result|
+                    budget&.record(result)
+                    bar.advance(as: result.errored? ? :failed : :ok)
+                  })
               end
             end
           end
