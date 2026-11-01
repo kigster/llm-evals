@@ -7,6 +7,8 @@ module LLM
         # Presents a decoded report in the terminal and optionally writes the
         # detailed view to a report file.
         class Terminal
+          # The collaborators are callables so the command keeps its drawing methods.
+          #
           # @param invocation [Dry::CLI::UI::Invocation]
           # @param writing_to [#call] redirects the command's table helpers
           # @param leaderboard [#call] draws the summary leaderboard
@@ -16,11 +18,16 @@ module LLM
             @leaderboard = leaderboard
           end
 
+          # Draws the detail then the leaderboard. With a report file, both also go there;
+          # the screen then gets the leaderboard alone.
+          #
           # @param summaries [Array<Actions::Experiment::Summary>]
           # @param output [String, nil]
           # @param scores [Boolean]
           # @param totals_mode [String] overall, variant or both
+          # @param details [Proc, nil] the block below
           # @yield [summaries] draw the per-case detail
+          # @yieldparam summaries [Array<Actions::Experiment::Summary>]
           # @return [String, nil] report file path
           def call(summaries:, output:, scores:, totals_mode:, &details)
             path = @invocation.report_path(output)

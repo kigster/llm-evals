@@ -18,22 +18,40 @@ module LLM
         # Logfire's US region, per their docs on 2026-10-15; other regions
         # exist, so LOGFIRE_BASE_URL overrides it.
         DEFAULT_BASE_URL = "https://logfire-us.pydantic.dev"
+        # The environment variable holding the write token; also what selects this tracker.
         TOKEN = "LOGFIRE_TOKEN"
+        # The environment variable that overrides {DEFAULT_BASE_URL}.
         BASE_URL = "LOGFIRE_BASE_URL"
+        # The standard OTLP endpoint variable, which beats ours when set.
         OTEL_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        # The standard OTLP headers variable, which beats ours when set.
         OTEL_HEADERS = "OTEL_EXPORTER_OTLP_HEADERS"
 
         # Bytes of the diagnostics JSON kept on a case span; the rest is cut,
         # since an attribute is not the place for a whole transcript.
         DIAGNOSTICS_LIMIT = 4096
 
+        # Overrides {Base.env_key}.
+        #
+        # @return [String] {TOKEN}
         def self.env_key = TOKEN
+        # Overrides {Base.gems}.
+        #
+        # @return [Array<String>] the OpenTelemetry SDK and its OTLP exporter
         def self.gems = %w[opentelemetry-sdk opentelemetry-exporter-otlp]
 
         attr_reader :endpoint, :source
 
+        # @!attribute [r] endpoint
+        #   @return [String, nil] where traces go; nil leaves the SDK's default
+
+        # @!attribute [r] source
+        #   @return [String] which variables the credentials came from, for {#describe}
+
+        # Reads the settings now; the OpenTelemetry objects wait for {#start}.
+        #
         # @param exporter [#export, nil] an exporter to use instead of OTLP, for tests
-        # @param env [Hash]
+        # @param env [#[]] the environment, ENV by default
         # @param context [Hash] see {Base#initialize}
         def initialize(exporter: nil, env: ENV, **context)
           super(**context)
@@ -43,17 +61,31 @@ module LLM
           @cases = []
         end
 
+        # Overrides {Base#describe}.
+        #
+        # @return [String] the endpoint and where the credentials came from
         def describe = "logfire: endpoint #{endpoint || "(SDK default)"}, credentials from #{source}"
 
+        # Accepts the config's key as a string or a symbol.
+        #
         # @return [Boolean] whether raw replies ride along on the case spans
         def include_replies? = options["include_replies"] == true || options[:include_replies] == true
 
+        # Builds the provider and opens the experiment span.
+        #
+        # @param experiment [Actions::Experiment] the experiment starting
+        # @return [void]
         def start(experiment)
           @provider = provider
           @tracer = @provider.tracer("llm-evals", LLM::Evals::VERSION)
           @span = @tracer.start_span("experiment #{experiment.name}", attributes: experiment_attributes(experiment))
         end
 
+        # Adds a finished child span, back-dated by the case's duration, since the
+        # callback arrives only once the case is over.
+        #
+        # @param result [Results::RunResult] the finished case
+        # @return [void]
         def record(result)
           now = Time.now
           span = @tracer.start_span("case #{result.case.key}",
@@ -70,6 +102,8 @@ module LLM
         # Closes the experiment span with the summary and flushes. No URL:
         # Logfire's trace pages are not something the token lets us build.
         #
+        # @param _experiment [Actions::Experiment] unused
+        # @param summary [Actions::Experiment::Summary] its totals
         # @return [Hash] `url:` nil
         def finish(_experiment, summary)
           summary.means.each { |metric, mean| @span.set_attribute("evals.mean.#{metric}", mean) unless mean.nil? }
@@ -87,6 +121,10 @@ module LLM
         # Which credentials win: the standard OTEL_* variables when either is
         # set, else our LOGFIRE_* pair. Returns the endpoint and headers to
         # hand the exporter (nil leaves the SDK's own reading in place).
+        #
+        # @param env [#[]] the environment
+        # @return [Array(String, Hash{String => String}, String)] endpoint, headers and a
+        #   description of the source; endpoint and headers may be nil
         def settings(env)
           if [OTEL_ENDPOINT, OTEL_HEADERS].any? { !env[it].to_s.empty? }
             [env[OTEL_ENDPOINT], nil, "#{OTEL_ENDPOINT}/#{OTEL_HEADERS} (set in the environment; #{TOKEN} ignored)"]
@@ -98,6 +136,8 @@ module LLM
 
         # A tracer provider of our own, so the global one, which a consumer
         # may have configured for its application, is left alone.
+        #
+        # @return [OpenTelemetry::SDK::Trace::TracerProvider]
         def provider
           exporter = @exporter || OpenTelemetry::Exporter::OTLP::Exporter.new(**{ endpoint: endpoint, headers: @headers }.compact)
           processor = if @exporter
@@ -109,6 +149,10 @@ module LLM
           OpenTelemetry::SDK::Trace::TracerProvider.new(resource: resource).tap { it.add_span_processor(processor) }
         end
 
+        # The attributes of the experiment span.
+        #
+        # @param experiment [Actions::Experiment] the experiment starting
+        # @return [Hash{String => String, Numeric}]
         def experiment_attributes(experiment)
           model = experiment.model
           { "evals.suite" => context[:suite].to_s, "evals.project" => context[:project].to_s, "evals.experiment" => experiment.name,
@@ -117,6 +161,11 @@ module LLM
             "evals.cases" => experiment.cases.size }
         end
 
+        # The attributes of a case span. A failed case has no score or reply, so it
+        # stops at the error.
+        #
+        # @param result [Results::RunResult] the finished case
+        # @return [Hash{String => String, Numeric}]
         def case_attributes(result)
           kase = result.case
           attributes = { "evals.case" => kase.id, "evals.dataset" => kase.dataset, "evals.variant" => kase.variant,
@@ -136,6 +185,10 @@ module LLM
           attributes
         end
 
+        # Caps an attribute at {DIAGNOSTICS_LIMIT} bytes.
+        #
+        # @param text [String] the JSON or reply text
+        # @return [String] the text, cut and marked with "..." when over the limit
         def truncate(text) = text.bytesize > DIAGNOSTICS_LIMIT ? "#{text.byteslice(0, DIAGNOSTICS_LIMIT)}..." : text
       end
     end

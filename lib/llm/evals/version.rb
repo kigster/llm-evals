@@ -2,6 +2,7 @@
 
 module LLM
   module Evals
+    # The gem's version, which `evals version` prints.
     VERSION = "0.5.0"
   end
 end

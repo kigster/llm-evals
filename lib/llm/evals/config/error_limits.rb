@@ -5,7 +5,14 @@ module LLM
     class Config
       # The `errors:` section: when to give up on a run. Both limits must be met,
       # and `percent` needs `total`, since one failed first call is already 100%.
+      #
+      # @!attribute [r] total
+      #   @return [Integer] errors before the run may abort
+      # @!attribute [r] percent
+      #   @return [Numeric, nil] the share of finished calls that must have failed
       ErrorLimits = Data.define(:total, :percent) do
+        # Checks the section as the file wrote it.
+        #
         # @param section [Object] the section as the file has it, not nil
         # @param path [String] names the file in an error
         # @return [ErrorLimits]

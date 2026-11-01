@@ -5,6 +5,8 @@ module LLM
     module CLI
       # The flags of every command that calls a model.
       module ModelOptions
+        # Declares them on the command's class, which is where dry-cli keeps flags.
+        #
         # @param command [Class<Command>]
         # @return [void]
         def self.apply(command)

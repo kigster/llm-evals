@@ -15,25 +15,37 @@ module LLM
         # @return [Registry] Braintrust and Logfire
         def self.default = new([Braintrust, Logfire])
 
+        # The array is copied, so registering later does not touch the caller's.
+        #
         # @param classes [Array<Class<Base>>]
         def initialize(classes = [])
           @classes = classes.dup
         end
 
+        # Later registration wins, which is how a suite swaps a built-in tracker.
+        #
         # @param klass [Class<Base>] replaces one registered under the same name
-        # @return [Class<Base>]
+        # @return [Class<Base>] the class given
         def register(klass)
           @classes.reject! { it.tracker_name == klass.tracker_name }
           @classes << klass
           klass
         end
 
+        # Walks the classes in registration order.
+        #
+        # @yieldparam klass [Class<Base>] each tracker class
+        # @return [Array<Class<Base>>, Enumerator] the list; an Enumerator without a block
         def each(&) = @classes.each(&)
 
+        # For {#named}'s error message.
+        #
         # @return [Array<String>]
         def names = map(&:tracker_name)
 
-        # @param name [String, Symbol]
+        # Finds a tracker class by its {Base.tracker_name}.
+        #
+        # @param name [String, Symbol] the name as given
         # @return [Class<Base>]
         # @raise [Error] naming the known trackers
         def named(name)
@@ -47,7 +59,7 @@ module LLM
         #
         # @param flag [String, nil] what `--tracker` was given
         # @param config [String, nil] the config file's `tracker:`
-        # @param env [Hash]
+        # @param env [#[]] the environment, ENV by default
         # @param local [Boolean] `--local`
         # @return [Array(Class<Base>, String), nil] the class and why it was chosen; nil for none
         # @raise [Error] on an unknown name or an ambiguous environment
@@ -69,8 +81,18 @@ module LLM
 
         private
 
+        # Whether a flag or config value actually says something; blank counts as unset.
+        #
+        # @param value [String, nil] the value given
+        # @return [Boolean]
         def present?(value) = !value.nil? && !value.to_s.strip.empty?
 
+        # Resolves a named choice, where the {NONE} spellings mean no remote tracker.
+        #
+        # @param name [String] the name as given
+        # @param from [String] where it came from, for `--verbose`
+        # @return [Array(Class<Base>, String), nil] the class and the reason; nil for none
+        # @raise [Error] on an unknown name
         def choice(name, from)
           return nil if NONE.include?(name.to_s)
 

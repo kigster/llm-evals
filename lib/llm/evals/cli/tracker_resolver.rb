@@ -6,6 +6,8 @@ module LLM
       # Where a run's results go: the local JSON log, always, then one remote
       # tracker if any, chosen once per run.
       class TrackerResolver
+        # Holds only collaborators; nothing is chosen until {#remote} is asked.
+        #
         # @param configuration [Runtime::Configuration]
         # @param config [Config]
         # @param options [Hash] the parsed flags
@@ -30,6 +32,8 @@ module LLM
           @remote = chosen&.first
         end
 
+        # --project, the lineup's, the suite's, and last the suite's name.
+        #
         # @return [String]
         def project = @options[:project] || @config.project || @configuration.project || @configuration.name
 

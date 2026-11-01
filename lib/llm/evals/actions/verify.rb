@@ -9,11 +9,13 @@ module LLM
       # checks each dataset's shared files, and the scorer each case against
       # what it will demand of it.
       class Verify
-        # @param configuration [Runtime::Configuration]
+        # @param configuration [Runtime::Configuration] the suite to check
         def initialize(configuration = LLM::Evals.configuration)
           @configuration = configuration
         end
 
+        # Asks the adapter about each dataset, then checks every case in it.
+        #
         # @return [Hash{String => Array<String>}] problems by "dataset/id"; empty when all is sound
         def problems
           discovery = @configuration.discovery
@@ -28,8 +30,10 @@ module LLM
           failures
         end
 
-        # @param kase [Datasets::Case]
-        # @return [Array<String>]
+        # Checks one case; an exception from the scorer or adapter is reported as a problem.
+        #
+        # @param kase [Datasets::Case] the case to check
+        # @return [Array<String>] problems; empty when the case is sound
         def case_problems(kase)
           problems = []
           problems << "input is empty" if kase.input.empty?
@@ -43,7 +47,13 @@ module LLM
 
         private
 
+        # The suite's adapter.
+        #
+        # @return [Actions::Adapter, nil] nil when the suite has not registered one
         def adapter = @configuration.adapter
+        # The suite's scorer.
+        #
+        # @return [Scoring::Scorer, nil] nil when the suite has not registered one
         def scorer = @configuration.scorer
       end
     end

@@ -11,6 +11,20 @@ module LLM
 
         attr_reader :metrics, :primary, :weighted
 
+        # @!attribute [r] metrics
+        #   The columns the suite scores.
+        #   @return [Array<Scoring::Metric>]
+
+        # @!attribute [r] primary
+        #   The metric the ranking reads.
+        #   @return [Scoring::Metric]
+
+        # @!attribute [r] weighted
+        #   Doubles as the question of whether the file sets weights at all.
+        #   @return [Scoring::WeightedScore, nil]
+
+        # Holds no results; every method answers from what it is given.
+        #
         # @param metrics [Array<Scoring::Metric>]
         # @param primary [Scoring::Metric] the metric the ranking reads
         # @param weighted [Scoring::WeightedScore, nil] nil when the file sets no weights
@@ -25,7 +39,7 @@ module LLM
         # plain score-per-dollar ratio would crown whatever is nearly free,
         # however wrong it is.
         #
-        # @param entries [Array<Array(Float, Float, Integer)>] primary metric, cost, errors
+        # @param entries [Array<Array(Float, Float, Integer)>] primary metric (nil when unscored), cost, errors
         # @return [Integer, nil] the winner's index
         def best_value(entries)
           eligible = entries.each_index.select { entries[it][0] && entries[it][2].zero? }
@@ -52,10 +66,14 @@ module LLM
           groups.sort_by { -((weighted ? it[:weighted] : it[:value]) || -1) }
         end
 
+        # The same rule as {#best_value}, over contenders rather than experiments.
+        #
         # @param groups [Array<Hash>] from {#contender_groups}
         # @return [Integer, nil] the index of the best value
         def best_contender(groups) = best_value(groups.map { [it[:value], it[:usage].cost_usd, it[:errors]] })
 
+        # Weighted scores are relative, so an experiment is compared only within its dataset.
+        #
         # @param summaries [Array<Actions::Experiment::Summary>]
         # @return [Hash{Actions::Experiment::Summary => Float, nil}] by identity, each compared within its dataset
         def weighted_scores(summaries)
@@ -107,6 +125,8 @@ module LLM
           end
         end
 
+        # Scores rows together, since a weighted score depends on the rows beside it.
+        #
         # @param rows [Array<Hash>]
         # @return [Array<Float, nil>] nils when the file sets no weights
         def weighted_by(rows) = weighted ? weighted.call(rows) : Array.new(rows.size)

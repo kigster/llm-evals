@@ -11,6 +11,18 @@ module LLM
       class Environment
         attr_reader :env_files, :hooks, :app_name
 
+        # @!attribute [r] env_files
+        #   Absolute paths; those that exist load.
+        #   @return [Array<String>]
+
+        # @!attribute [r] hooks
+        #   The suite's `before_run` blocks.
+        #   @return [Array<Proc>]
+
+        # @!attribute [r] app_name
+        #   What a provider tells its API the caller is.
+        #   @return [String]
+
         # @param env_files [Array<String>] absolute paths; those that exist load
         # @param hooks [Array<Proc>] the suite's `before_run` blocks
         # @param app_name [String] what a provider tells its API the caller is
@@ -32,7 +44,7 @@ module LLM
         # Fails before anything is called when a key the run needs is neither
         # exported nor in an env file.
         #
-        # @param names [Array<String>]
+        # @param names [Array<String>] variable names; repeats are fine
         # @return [void]
         # @raise [Error] naming every missing variable
         def require_env!(names)
@@ -50,6 +62,8 @@ module LLM
             "an exported blank value wins over the file"
         end
 
+        # Readies the process for a run: env files, checks, hooks, then provider clients, in that order.
+        #
         # @param providers [Array<Providers::Base>] the providers the run's models use
         # @param tracker [Class<Trackers::Base>, nil] the remote tracker chosen, whose gems and key are checked too
         # @return [void]
@@ -64,7 +78,7 @@ module LLM
 
         # Opens a URL in the desktop browser.
         #
-        # @param url [String]
+        # @param url [String] the page to open
         # @return [Boolean] whether the opener ran
         def browse(url)
           opener = RUBY_PLATFORM.include?("darwin") ? "open" : "xdg-open"

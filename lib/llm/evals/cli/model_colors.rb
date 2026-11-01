@@ -9,11 +9,14 @@ module LLM
         # What a model can be drawn in. More models than these share them.
         COLORS = %i[bright_red bright_green bright_yellow bright_blue bright_magenta bright_cyan bright_white].freeze
 
+        # Shuffles once, so the colors change between runs and hold within one.
         def initialize
           palette = COLORS.shuffle
           @colors = Hash.new { |colors, model| colors[model] = palette[colors.size % palette.size] }
         end
 
+        # Hands out the next color the first time a model is asked about.
+        #
         # @param model [String] the model's id
         # @return [Symbol] a Pastel style
         def [](model) = @colors[model]

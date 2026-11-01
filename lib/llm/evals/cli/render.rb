@@ -10,6 +10,12 @@ module LLM
         argument :input, required: true, desc: "JSON report file produced by run or compare --format json"
         option :output, aliases: ["-o"], desc: "HTML output path (default: log/<project>-llm-evals.report.html)"
 
+        # Writes the page beside the other reports, to the given path, or to STDOUT for `-o -`.
+        #
+        # @param input [String] the path of the saved JSON
+        # @param output [String, nil] what -o was given: nil or "" for the default file, "-", or a path
+        # @return [void]
+        # @raise [Error] on a report of an unknown format, version or provider
         def call(input:, output: nil, **)
           source = File.read(input)
           saved = LLM::Evals::Render::Reports::JSON.decode(source, providers: configuration.providers)

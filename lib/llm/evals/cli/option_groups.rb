@@ -11,6 +11,10 @@ module LLM
 
         private
 
+        # Overrides `Dry::CLI::Help::Screens::Command#render_options`, which prints one
+        # list. The help row goes last among the general options.
+        #
+        # @return [Array<String>] the section's lines
         def render_options
           shown = command.options.reject { it.options.fetch(:hidden, false) && !include_hidden? }
           return super if shown.none? { it.options[:group] }

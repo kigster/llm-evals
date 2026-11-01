@@ -11,12 +11,16 @@ module LLM
       # @param values [Array<Numeric>]
       # @param share [Float] from 0 to 1
       # @return [Numeric, nil] nil with no values
+      # @example
+      #   Stats.percentile([1, 2, 3, 4], 0.5) # => 2
       def percentile(values, share)
         return if values.empty?
 
         values.sort[[(share * values.size).ceil - 1, 0].max]
       end
 
+      # Plain average, sparing callers a division by zero on an empty list.
+      #
       # @param values [Array<Numeric>]
       # @return [Float, nil] nil with no values
       def mean(values) = values.empty? ? nil : values.sum.fdiv(values.size)

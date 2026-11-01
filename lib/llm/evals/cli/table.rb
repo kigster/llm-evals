@@ -24,6 +24,8 @@ module LLM
         # The narrowest a wrapped column gets, however full the screen.
         MIN_WRAP = 30
 
+        # Holds no rows, so one instance can draw any number of tables.
+        #
         # @param pastel [Pastel]
         # @param width [Integer] the columns available
         def initialize(pastel:, width:)
@@ -31,6 +33,8 @@ module LLM
           @width = width
         end
 
+        # Draws one table, with widths measured before any highlight is painted on.
+        #
         # @param rows [Array<Array<#to_s>>]
         # @param header [Array<String>]
         # @param highlight [Array<Integer>] rows drawn in bold yellow (when color is on)
@@ -56,6 +60,12 @@ module LLM
         private
 
         # Wraps the fill column's cells in place when asked to.
+        #
+        # @param header [Array<String>]
+        # @param cells [Array<Array<String>>] modified when wrapping
+        # @param fill [Integer] the column that absorbs the spare width
+        # @param wrap [Boolean] word-wrap the fill column to fit
+        # @return [Array<Integer>] each column's width
         def fitted_widths(header, cells, fill, wrap)
           widths = column_widths([header] + cells)
           spare = @width - (widths.sum - widths[fill]) - ((3 * widths.size) + 1)
@@ -68,6 +78,11 @@ module LLM
           widths
         end
 
+        # A column right-aligns when all it holds reads as a number. One holding only placeholders stays left.
+        #
+        # @param header [Array<String>]
+        # @param cells [Array<Array<String>>]
+        # @return [Array<Symbol>] `:left` or `:right`, one per column
         def alignments(header, cells)
           header.each_index.map do |index|
             column = cells.map { it[index] }.reject { PLACEHOLDERS.include?(it) }
@@ -75,6 +90,9 @@ module LLM
           end
         end
 
+        # Measures past any color, which takes up no columns.
+        #
+        # @param rows [Array<Array<#to_s>>]
         # @return [Array<Integer>] each column's widest line
         def column_widths(rows)
           rows.transpose.map { |column| column.flat_map { @pastel.strip(it.to_s).split("\n") }.map(&:length).max.to_i }

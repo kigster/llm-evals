@@ -7,15 +7,34 @@ module LLM
       # combines them (only :mean today), skipping nil, so a metric a case does
       # not apply to never drags its mean down with a free 0 or up with a free 1.
       # The `primary` metric ranks the leaderboard and picks the best value.
+      #
+      # @!attribute [r] name
+      #   @return [String] the column's key
+      # @!attribute [r] description
+      #   @return [String] the glossary's line
+      # @!attribute [r] aggregate
+      #   @return [Symbol] one of {AGGREGATES}
+      # @!attribute [r] primary
+      #   @return [Boolean] whether it ranks the leaderboard
       class Metric < Data.define(:name, :description, :aggregate, :primary)
+        # The ways {#combine} can be asked to combine values.
         AGGREGATES = %i[mean].freeze
 
+        # Turns the name into a String, so a metric can be declared with a Symbol.
+        #
+        # @param name [String, Symbol] the column's key
+        # @param description [String] the glossary's line
+        # @param aggregate [Symbol] one of {AGGREGATES}
+        # @param primary [Boolean] whether it ranks the leaderboard
+        # @raise [ArgumentError] on an aggregate outside {AGGREGATES}
         def initialize(name:, description: "", aggregate: :mean, primary: false)
           raise ArgumentError, "aggregate must be one of #{AGGREGATES.join(", ")}" unless AGGREGATES.include?(aggregate)
 
           super(name: name.to_s, description: description, aggregate: aggregate, primary: primary)
         end
 
+        # Averages what the cases reported, skipping nil.
+        #
         # @param values [Array<Float, nil>] one per case
         # @return [Float, nil] nil when no case reported the metric
         def combine(values)

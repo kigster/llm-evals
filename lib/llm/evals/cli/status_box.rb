@@ -18,6 +18,8 @@ module LLM
           error:   { title: " Error ", fg: :bright_white, bg: :red }
         }.freeze
 
+        # Told its width and color, rather than asking the terminal itself.
+        #
         # @param width [Integer] the box's whole width
         # @param color [Boolean]
         def initialize(width:, color:)
@@ -25,9 +27,12 @@ module LLM
           @color = color
         end
 
+        # Cuts words too wide for the box, before tty-box can drop them.
+        #
         # @param level [Symbol] a key of {LEVELS}
         # @param text [String]
         # @return [String]
+        # @raise [KeyError] on an unknown level
         def render(level, text)
           look = LEVELS.fetch(level)
           style = @color ? { fg: look[:fg], bg: look[:bg], border: { fg: look[:fg], bg: look[:bg] } } : {}

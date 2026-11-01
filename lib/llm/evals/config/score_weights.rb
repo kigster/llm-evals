@@ -5,6 +5,8 @@ module LLM
     class Config
       # The `weighted_score:` section; see {Scoring::WeightedScore}.
       module ScoreWeights
+        # Only checks the shape; {Scoring::WeightedScore} judges the columns and numbers.
+        #
         # @param section [Object, nil] the section as the file has it
         # @param path [String] names the file in an error
         # @return [Hash{String => Object}] by column; empty when the file sets none

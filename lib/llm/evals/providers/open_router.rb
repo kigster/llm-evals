@@ -7,26 +7,48 @@ module LLM
       # traces RubyLLM calls (tokens, latency, cost) and not raw HTTP. Claims
       # every id no other provider does, so it is always asked last.
       class OpenRouter < Base
+        # The model list, which {#catalog} reads.
         URL = "https://openrouter.ai/api/v1/models"
+        # The environment variable holding the API key.
         KEY = "OPENROUTER_API_KEY"
 
         # OpenRouter's reasoning.effort values.
         EFFORTS = %w[none minimal low medium high xhigh max].freeze
 
+        # Overrides {Base#name}, whose dasherizing would say "open-router".
+        #
+        # @return [String] "openrouter"
         def name = "openrouter"
+        # Overrides {Base#request_type}: chat completions.
+        #
+        # @return [Symbol] `:prompt`
         def request_type = :prompt
+        # Overrides {Base#request_type_description}.
+        #
+        # @return [String]
         def request_type_description = "a chat completion: system and user text in, text out"
+        # Overrides {Base#env_keys}.
+        #
+        # @return [Array<String>] just {KEY}
         def env_keys = [KEY]
+        # Overrides {Base#efforts} with {EFFORTS}, OpenRouter's own list.
+        #
+        # @return [Array<String>]
         def efforts = EFFORTS
 
+        # Reads the list without credentials.
+        #
         # @return [Array<String>] every id OpenRouter lists
+        # @raise [Error] when the list cannot be read
+        # @raise [KeyError] when the body has no `data`, or an entry no `id`
         def catalog = Catalog.fetch(URL).fetch("data").map { it.fetch("id") }
 
         # Points RubyLLM at OpenRouter. Requires it here, not at load, so a
         # suite that never reaches OpenRouter never needs the gem.
         #
-        # @param app_name [String]
+        # @param app_name [String] what RubyLLM tells OpenRouter the caller is
         # @return [void]
+        # @raise [MissingDependency] when the ruby_llm gem is absent
         def setup!(app_name:)
           LLM::Evals.optional!("ruby_llm", needed_for: "calling models through OpenRouter")
           RubyLLM.configure do |config|
@@ -36,7 +58,9 @@ module LLM
           end
         end
 
-        # @param error [StandardError]
+        # Only classifies the errors RubyLLM and Faraday raise; anything else is final.
+        #
+        # @param error [StandardError] what a call raised
         # @return [Boolean] rate limits, overloads and dropped connections
         def retryable?(error)
           case error
@@ -48,18 +72,21 @@ module LLM
 
         # OpenRouter sends the header only when every upstream hinted at it.
         #
-        # @param error [StandardError]
-        # @return [Numeric, nil]
+        # @param error [StandardError] what a call raised
+        # @return [Numeric, nil] the seconds to wait, when the error carries a usable header
         def retry_after(error)
           value = error.respond_to?(:response) && error.response&.response_headers&.[]("retry-after")
           Float(value, exception: false) if value
         end
 
-        # @param model [Models::Model]
-        # @param system [String, nil]
-        # @param user [String]
+        # Sends one chat through RubyLLM, passing on only the settings the model has.
+        #
+        # @param model [Models::Model] the model and settings to call
+        # @param system [String, nil] the system prompt, if any
+        # @param user [String] the user prompt
         # @param json [Boolean] asks for `response_format: json_object`
         # @return [Results::ProviderResponse] text, plus the tokens and the cost OpenRouter billed
+        # @raise [MissingDependency] when the ruby_llm gem is absent
         def complete(model, system:, user:, json: true)
           LLM::Evals.optional!("ruby_llm", needed_for: "calling models through OpenRouter")
           chat = RubyLLM.chat(model: model.name, provider: :openrouter, assume_model_exists: true)

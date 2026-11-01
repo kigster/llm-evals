@@ -9,6 +9,11 @@ module LLM
 
         option :dataset, type: :array, aliases: ["-d"], default: [], desc: "Only these datasets, comma-separated"
 
+        # Prints one row per case, then whatever the lineup cannot ask.
+        #
+        # @param dataset [Array<String>] as given to -d, possibly comma-separated; empty means every dataset
+        # @return [void]
+        # @raise [Error] when no case is found
         def call(dataset: [], **)
           scorer = configuration.scorer
           names = dataset.flat_map { it.split(",") }
@@ -26,6 +31,8 @@ module LLM
 
         # Names, on STDERR, every lineup entry the suite cannot ask, so the
         # mismatch is visible before anyone reaches for `run`.
+        #
+        # @return [void]
         def refusals
           config = configuration.lineup
           _, refused = configuration.providers.admit(config.contenders, request_types: config.request_types)
@@ -34,6 +41,9 @@ module LLM
 
         # The generic cell when the scorer has nothing to say: how many fields
         # the expected answer holds, or what kind of thing it is.
+        #
+        # @param kase [Datasets::Case]
+        # @return [String]
         def summary(kase)
           case kase.expected
           when Hash then "#{kase.expected.size} fields"

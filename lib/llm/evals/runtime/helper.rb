@@ -9,18 +9,30 @@ module LLM
       # dispatching, the way rspec finds spec_helper, so the suite's own
       # directory needs no wrapper script.
       module Helper
+        # Where the helper lives, relative to a directory searched by {.locate}.
         FILE = File.join("evals", "eval_helper.rb")
+        # The variable that names a helper, when the flag does not.
         ENV_VAR = "LLM_EVALS_HELPER"
+        # The flag that names a helper, read here because no command declares it.
         FLAG = "--helper"
 
         # What {.locate} found: a helper to load, a config file to read, or neither.
+        #
+        # @!attribute [r] helper
+        #   @return [String, nil] the path of the helper to load
+        # @!attribute [r] config
+        #   @return [String, nil] the path of the config file
         Found = Data.define(:helper, :config) do
+          # Either may be left out, and {.locate} returns neither when it finds nothing.
+          #
+          # @param helper [String, nil] the path of the helper to load
+          # @param config [String, nil] the path of the config file
           def initialize(helper: nil, config: nil) = super
 
           # @return [Boolean] whether there is anything to load
           def any? = !helper.nil? || !config.nil?
 
-          # @return [Boolean]
+          # @return [Boolean] whether there is nothing to load
           def none? = !any?
         end
 
@@ -29,7 +41,7 @@ module LLM
         # Pulls `--helper PATH` (or `--helper=PATH`) out of argv, so dry-cli
         # never sees a flag no command declares.
         #
-        # @param argv [Array<String>]
+        # @param argv [Array<String>] the command line; left unchanged
         # @return [Array(Array<String>, String, nil)] the remaining arguments and the path, if given
         def extract(argv)
           rest = []

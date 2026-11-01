@@ -9,6 +9,8 @@ module LLM
         class JSON
           # Completed runs into the snapshot's document. {Decoder} reads it back.
           class Encoder
+            # Does nothing until {#call}.
+            #
             # @param summaries [Array<Actions::Experiment::Summary>]
             # @param metrics [Array<Scoring::Metric>]
             # @param weighted_score [Scoring::WeightedScore, nil]
@@ -22,6 +24,9 @@ module LLM
               @suite = suite
             end
 
+            # Stamps the document with the current time. Call stats are included for other
+            # readers of the file; {Decoder} ignores them and recalculates.
+            #
             # @return [String]
             def call
               ::JSON.pretty_generate(
@@ -39,6 +44,10 @@ module LLM
 
             private
 
+            # Turns symbols into strings at every depth, so what is written reads back the same.
+            #
+            # @param value [Object] run options, or anything inside them
+            # @return [Object] the same shape, with no Symbols
             def plain(value)
               case value
               when Hash then value.to_h { |key, item| [key.to_s, plain(item)] }
@@ -48,6 +57,8 @@ module LLM
               end
             end
 
+            # @param summary [Actions::Experiment::Summary]
+            # @return [Hash{Symbol => Object}]
             def summary(summary)
               {
                 model:     { id: summary.model.id, provider: summary.model.provider.name, settings: summary.model.settings },
@@ -62,18 +73,28 @@ module LLM
               }
             end
 
+            # @param result [Results::RunResult]
+            # @return [Hash{Symbol => Object}]
             def result(result)
               { case: kase(result.case), reply: reply(result.reply), score: score(result.score), duration: result.duration, error: result.error }
             end
 
+            # Omits the case's path, keeping the snapshot portable.
+            #
+            # @param kase [Datasets::Case]
+            # @return [Hash{Symbol => Object}]
             def kase(kase)
               { id: kase.id, dataset: kase.dataset, variant: kase.variant, input: kase.input, expected: kase.expected, metadata: kase.metadata }
             end
 
+            # @param reply [Results::Reply, nil]
+            # @return [Hash{Symbol => Object}, nil] nil for a run that raised
             def reply(reply)
               reply && { output: reply.output, raw: reply.raw, usage: reply.usage.to_h, error: reply.error, metadata: reply.metadata }
             end
 
+            # @param score [Results::Score, nil]
+            # @return [Hash{Symbol => Object}, nil] nil for an unscored run
             def score(score)
               score && { value: score.value, metrics: score.metrics, outcomes: score.outcomes, diagnostics: score.diagnostics }
             end

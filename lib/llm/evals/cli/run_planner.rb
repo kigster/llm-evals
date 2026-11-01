@@ -8,6 +8,8 @@ module LLM
       # What a run will do: which datasets, how many cases and experiments at
       # once, and one experiment per dataset and contender.
       class RunPlanner
+        # Holds only collaborators; nothing is decided until it is asked.
+        #
         # @param configuration [Runtime::Configuration]
         # @param config [Config]
         # @param options [Hash] the parsed flags
@@ -19,6 +21,8 @@ module LLM
           @trackers = trackers
         end
 
+        # Named datasets are checked, so a typo fails before the first call.
+        #
         # @param names [Array<String>] as given to -d, possibly comma-separated; empty means every dataset
         # @return [Array<String>]
         # @raise [Error] on an unknown dataset, before anything is spent
@@ -29,6 +33,8 @@ module LLM
           names.each { discovery.cases(dataset: it) }
         end
 
+        # Every dataset crossed with every contender, datasets first.
+        #
         # @param datasets [Array<String>]
         # @param contenders [Array<Models::Contender>]
         # @return [Array<Actions::Experiment>]
@@ -36,6 +42,8 @@ module LLM
           datasets.flat_map { |dataset| contenders.map { experiment(it, dataset) } }
         end
 
+        # -p, else the lineup's defaults.parallelism.
+        #
         # @return [Integer] cases in flight at once, per model
         def parallelism = Integer(@options[:parallelism] || @config.defaults["parallelism"])
 
@@ -54,12 +62,25 @@ module LLM
 
         private
 
+        # Read through the configuration on each call.
+        #
+        # @return [Datasets::Discovery]
         def discovery = @configuration.discovery
 
+        # Used when -d names none.
+        #
+        # @return [Array<String>]
+        # @raise [Error] when the suite has no datasets
         def every_dataset
           discovery.datasets.tap { raise Error, "no datasets under #{discovery.root}" if it.empty? }
         end
 
+        # Trackers are made new for each experiment; the adapter and the scorer are shared by all.
+        #
+        # @param contender [Models::Contender]
+        # @param dataset [String]
+        # @return [Actions::Experiment]
+        # @raise [Error] when no case in the dataset matches -c
         def experiment(contender, dataset)
           Actions::Experiment.new(
             model:       @configuration.providers.model_for(contender, throttle: @config.throttle),

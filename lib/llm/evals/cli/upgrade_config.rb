@@ -17,6 +17,12 @@ module LLM
         option :config, aliases: ["-C"], desc: "The lineup file (default: the suite's .llm-evals.config.yml)"
         option :dry_run, type: :boolean, default: false, aliases: ["-n"], desc: "Print the result, change nothing"
 
+        # Leaves a file already in the current format alone, and refuses to overwrite an earlier backup.
+        #
+        # @param config [String, nil] the lineup file; nil for the suite's
+        # @param dry_run [Boolean] print the result, change nothing
+        # @return [void]
+        # @raise [Error] when the file is missing, or its backup already exists
         def call(config: nil, dry_run: false, **)
           path = config ? File.expand_path(config) : configuration.lineup.path
           raise Error, "no config file at #{path}" unless File.exist?(path)
@@ -39,6 +45,10 @@ module LLM
         private
 
         # A rename, so that a failed write cannot leave half a lineup.
+        #
+        # @param path [String]
+        # @param text [String]
+        # @return [void]
         def replace(path, text)
           temporary = "#{path}.tmp"
           File.write(temporary, text)

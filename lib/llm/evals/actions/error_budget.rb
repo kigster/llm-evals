@@ -10,6 +10,22 @@ module LLM
       class ErrorBudget
         attr_reader :total, :percent, :errors, :calls
 
+        # @!attribute [r] total
+        #   The fewest errors at which the run may abort.
+        #   @return [Integer]
+
+        # @!attribute [r] percent
+        #   The share of finished calls that must also have failed, from 0 to 100.
+        #   @return [Numeric, nil]
+
+        # @!attribute [r] errors
+        #   Failed calls so far, counted across every experiment sharing this budget.
+        #   @return [Integer]
+
+        # @!attribute [r] calls
+        #   Finished calls so far, whether or not they failed.
+        #   @return [Integer]
+
         # @param total [Integer] errors before the run may abort
         # @param percent [Numeric, nil] the share of finished calls that must have failed
         def initialize(total:, percent: nil)
@@ -21,7 +37,9 @@ module LLM
           @lock = Mutex.new
         end
 
-        # @param result [Results::RunResult]
+        # Counts one finished call, and marks the budget spent once both limits are met.
+        #
+        # @param result [Results::RunResult] the finished call
         # @return [void]
         def record(result)
           @lock.synchronize do
