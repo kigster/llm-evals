@@ -38,21 +38,24 @@ module LLM
           command.option :open,
             type:    :boolean,
             default: true,
-            desc:    "Open the best experiment in the browser when done (no effect with --local)"
+            group:   :browser,
+            desc:    "Open the HTML report when done; with --display tui, the best experiment on its tracker instead"
           command.option :scores,
             type:    :boolean,
             default: false,
+            group:   :tui,
             desc:    "Also print every experiment by score, with its cost and its tracker's link"
           command.option :totals,
             values:  %w[overall variant both],
             default: "overall",
+            group:   :tui,
             desc:    "Group TUI totals by overall results, case variant or both"
           command.option :format,
             values: %w[tui html json],
             desc:   "Override the configured display: tui, html or json"
           command.option :display,
-            values: %w[none tui browser],
-            desc:   "Override results.display from the lineup"
+            values: Config::RESULT_DISPLAYS,
+            desc:   "Override results.display: tui skips the HTML report, browser skips the terminal summary"
           command.option :autosave,
             type:    :boolean,
             default: nil,
