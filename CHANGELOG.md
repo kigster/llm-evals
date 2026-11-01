@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add `Model#ask` and `Providers::TypeSafe#ask`: typed questions to TypeSafe's API, through the same limits and retries.
+- Add `evals upgrade-config`, which rewrites a lineup to the current format, keeping its comments and leaving `<file>.bak`.
 - Breaking: the lineup lists models under a provider section (`openrouter: { vendors: ... }`, `typesafe: { models: ... }`). Top-level `vendors:` and `direct:` are errors.
 - Add `rate_limit: { burst, per_minute }` per provider, vendor and model, through `ruby-limiter`. Waiting is left out of `time`.
 - Turn RubyLLM's retries off and retry here, honoring `Retry-After` across a vendor's calls, up to 5 attempts.

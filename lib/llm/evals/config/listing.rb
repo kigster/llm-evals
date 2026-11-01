@@ -43,7 +43,7 @@ module LLM
         # @return [Array<Array(Providers::Base, Hash)>] the file's provider sections
         def sections(data)
           retired = %w[vendors direct] & data.keys
-          raise Error, "#{path}: #{retired.join(" and ")} no longer exist; list models under a provider, as `openrouter: { vendors: ... }` or `typesafe: { models: ... }`" if retired.any?
+          raise Error, "#{path}: #{retired.join(" and ")} no longer exist; run `evals upgrade-config` to move them under provider sections" if retired.any?
 
           names = providers.map(&:name)
           data.filter_map do |name, section|
