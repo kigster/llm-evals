@@ -25,12 +25,6 @@ module LLM
           out.write(document) unless path
           status_box(:success, "HTML report written to #{relative(path)}", stream: err) if path
         end
-
-        private
-
-        def invocation = ui.send(:invocation)
-
-        def relative(path) = Pathname(path).relative_path_from(Dir.pwd).to_s
       end
     end
   end

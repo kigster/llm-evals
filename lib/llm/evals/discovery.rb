@@ -27,6 +27,18 @@ module LLM
       # @return [Array<String>] every dataset that has at least one case, sorted
       def datasets = all.map(&:dataset).uniq.sort
 
+      # {#cases}, for a caller that cannot go on without any.
+      #
+      # @param dataset [String]
+      # @param only [Array<String>, nil] case id prefixes
+      # @return [Array<Case>]
+      # @raise [Error] when nothing matches
+      def cases!(dataset:, only: [])
+        cases(dataset:, only: Array(only)).tap do |found|
+          raise Error, "no cases match #{Array(only).join(", ")} in #{dataset}" if found.empty?
+        end
+      end
+
       # @param dataset [String, nil] one dataset; nil for all of them
       # @param only [Array<String>] id prefixes to keep ("clear", "clear/00"); empty keeps all
       # @return [Array<Case>] sorted by dataset, variant and number

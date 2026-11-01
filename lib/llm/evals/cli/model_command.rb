@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "pathname"
 require "uri"
 
 module LLM
@@ -54,7 +53,7 @@ module LLM
         def experiment(contender, config, options, dataset:)
           Experiment.new(
             model:       providers.model_for(contender, throttle: config.throttle),
-            cases:       cases_for(options[:case], dataset: dataset),
+            cases:       discovery.cases!(dataset:, only: options[:case]),
             adapter:     configuration.adapter,
             scorer:      scorer,
             parallelism: Integer(options[:parallelism] || config.defaults["parallelism"]),
@@ -359,11 +358,6 @@ module LLM
           count = warnings.count
           status_box(:warning, "#{count} #{count == 1 ? "Warning was" : "Warnings were"} recorded in #{relative(path)}", stream: err)
         end
-
-        # @return [Dry::CLI::UI::Invocation] how the command was run, which names its files
-        def invocation = ui.send(:invocation)
-
-        def relative(path) = Pathname(path).relative_path_from(Dir.pwd).to_s
 
         # Points the tables and boxes at another stream while the block runs.
         # They keep the screen's width.
