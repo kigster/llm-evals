@@ -647,6 +647,15 @@ RSpec.describe LLM::Evals::Launcher do
       expect(run_cli).to match(/↑ field_accuracy.*0\.75.*75\.0%/).and match(/↓ cost.*-0\.25.*25\.0%/)
     end
 
+    it "lists a scorer metric the weights leave out, with no values" do
+      expect(run_cli).to match(/exact_match *│ *│ *│/)
+    end
+
+    it "draws a metric the weights leave out in red" do
+      allow(Pastel).to(receive(:new).and_wrap_original { |build, **| build.call(enabled: true) })
+      expect(run_cli).to include("\e[31mexact_match")
+    end
+
     it "draws what is better low in bold blue and what is better high in bold yellow" do
       allow(Pastel).to(receive(:new).and_wrap_original { |build, **| build.call(enabled: true) })
       expect(run_cli).to include("\e[1;34m↓ cost", "\e[1;33m↑ field_accuracy")

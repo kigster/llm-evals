@@ -20,9 +20,11 @@ module LLM
           weights = lineup.score_weights
           raise Error, "#{lineup.path}: no weighted_score.weights to show" if weights.empty?
 
-          weighted = WeightedScore.new(weights, metrics: configuration.scorer.metrics.map(&:name))
+          metrics = configuration.scorer.metrics.map(&:name)
+          weighted = WeightedScore.new(weights, metrics:)
           rows = weighted.shares.map { |name, share| [direction(name, weighted.weights[name]), weighted.weights[name], format("%.1f%%", share * 100)] }
-          table(rows, header: %w[Column Weight Share], fill: 0)
+          unweighted = (metrics - weighted.weights.keys).map { [pastel.red(it), "", ""] }
+          table(rows + unweighted, header: %w[Column Weight Share], fill: 0)
         end
 
         private
