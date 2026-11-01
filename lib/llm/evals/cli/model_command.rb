@@ -18,7 +18,49 @@ module LLM
           ModelOptions.apply(subclass)
         end
 
+        # The run every model command makes; subclasses add what prints per run
+        # through {#details}.
+        def call(models:, dataset:, dry_run:, **options)
+          config = lineup(options)
+          weigh(config)
+          trackers = TrackerResolver.new(configuration:, config:, options:, err:)
+          planner = RunPlanner.new(configuration:, config:, options:, trackers:)
+          contenders = ContenderSelector.new(config:, providers:, warnings:).call(models, options)
+          datasets = planner.datasets(dataset)
+          return matrix(datasets, contenders) if dry_run
+
+          setup!(contenders, trackers)
+          runs = planner.experiments(datasets, contenders)
+          budget = config.error_budget
+          outcome = ExperimentPool.new(console: ui, colors: model_colors, warnings:).call(runs, concurrency: planner.concurrency, budget:)
+          record = RunRecord.new(command: invocation.action.to_s,
+            cli: { models:, dataset:, **options },
+            config:,
+            planner:,
+            trackers:,
+            providers:,
+            contenders:,
+            datasets:,
+            runs:,
+            seconds: outcome.seconds)
+          report(outcome.summaries,
+            output:      options[:output],
+            open:        options[:open],
+            scores:      options[:scores],
+            format:      options[:format],
+            config:,
+            options:,
+            run_options: record.to_h) { details(it) }
+          raise Error, budget.reason if budget&.spent?
+        end
+
         private
+
+        # What prints before the leaderboard; nothing, unless a subclass says.
+        #
+        # @param _summaries [Array<Experiment::Summary>]
+        # @return [void]
+        def details(_summaries) = nil
 
         # @return [Config] the lineup: --config, else the suite's
         def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config]), providers:) : configuration.lineup
@@ -44,107 +86,9 @@ module LLM
           @weighted = weights.empty? ? nil : WeightedScore.new(weights, metrics: metrics.map(&:name))
         end
 
-        # @return [Hash{String => Object}] the setting flags that were given
-        def overrides(options)
-          { "effort" => options[:effort], "temperature" => options[:temperature], "max_tokens" => options[:max_tokens] }
-        end
-
-        def experiment(contender, config, options, dataset:)
-          Experiment.new(
-            model:       providers.model_for(contender, throttle: config.throttle),
-            cases:       discovery.cases!(dataset:, only: options[:case]),
-            adapter:     configuration.adapter,
-            scorer:      scorer,
-            parallelism: Integer(options[:parallelism] || config.defaults["parallelism"]),
-            trackers:    trackers_for(config, options)
-          )
-        end
-
-        # Captures the parsed flags and the settings that actually reached the
-        # experiments. The former preserves the invocation; the latter records
-        # defaults and expanded case/model selections that were implicit.
-        def serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds:)
-          {
-            command:   invocation.action.to_s,
-            cli:       { models:, dataset:, **options },
-            effective: {
-              project:       options[:project] || config.project || configuration.project || configuration.name,
-              request_types: config.request_types.map(&:to_s),
-              datasets:,
-              cases:         runs.group_by(&:dataset).transform_values { |dataset_runs| dataset_runs.flat_map { it.cases.map(&:id) }.uniq },
-              contenders:    contenders.map do |contender|
-                settings = contender.settings
-                { model: contender.model, provider: providers.for(contender).name, effort: settings[:effort],
-                  temperature: settings[:temperature], max_tokens: settings[:max_tokens] }
-              end,
-              defaults:      config.defaults,
-              parallelism:   Integer(options[:parallelism] || config.defaults["parallelism"]),
-              concurrency:   concurrency(options),
-              tracker:       options[:local] ? "none" : remote_tracker(config, options)&.tracker_name,
-              seconds:       seconds
-            }
-          }
-        end
-
-        # The local JSON log, always, then the one remote tracker if any,
-        # each experiment getting instances of its own.
-        #
-        # @return [Array<Tracker>]
-        def trackers_for(config, options)
-          context = { suite:      configuration.name,
-                      project:    options[:project] || config.project || configuration.project || configuration.name,
-                      project_id: options[:project] ? nil : ENV["BRAINTRUST_PROJECT_ID"].to_s[/\S+/] }
-          local = Trackers::Local.new(dir: File.join(Dry::CLI::UI::Invocation.root(Dir.pwd), "log", "llm-evals"), **context)
-          klass = remote_tracker(config, options)
-          remote = klass&.new(**context, options: config.tracker_options(klass.tracker_name))
-          [local, remote].compact
-        end
-
-        # The remote tracker class this run uses, chosen once: --tracker,
-        # then tracker: in the config, then the environment. --local is none.
-        #
-        # @return [Class<Tracker>, nil]
-        def remote_tracker(config, options)
-          return @remote_tracker if defined?(@remote_tracker)
-
-          chosen = configuration.trackers.choose(flag: options[:tracker], config: config.tracker, env: ENV, local: options[:local])
-          @remote_tracker = chosen&.first
-          err.puts "tracker: #{chosen ? "#{chosen.first.tracker_name}, because #{chosen.last}" : "none"}" if options[:verbose]
-          @remote_tracker
-        end
-
-        # The contenders a command runs: the models named on the command line,
-        # or every model .llm-evals.config.yml lists.
-        #
-        # @param models [Array<String>] as given to -m, possibly comma-separated
-        # @return [Array<Contender>]
-        # @raise [Error] when neither names any model
-        def contenders(config, models, options)
-          models = models.flat_map { it.split(",") }
-          found = models.empty? ? config.contenders(overrides(options)) : config.contenders_for(models, overrides(options))
-          raise Error, "no models: list some under a provider in #{config.path}, or pass -m" if found.empty?
-
-          admit(found, config)
-        end
-
-        # Keeps the contenders whose provider produces what the suite declares
-        # in `request_types`, and records each refusal in {#warnings} by name,
-        # so a refused model is reported rather than run, failed and billed.
-        #
-        # @return [Array<Contender>] the admitted contenders
-        # @raise [Error] when none is admitted, naming every refusal
-        def admit(found, config)
-          found.each { providers.for(it) } # an unserved id fails here, before anything is spent
-          admitted, refusals = providers.admit(found, request_types: config.request_types)
-          refusals.each { warnings.record(it.to_s) }
-          raise Error, "no admitted models: #{refusals.join("; ")}" if admitted.empty?
-
-          admitted
-        end
-
         # Env, the tracker's gems and key, hooks, provider clients, then the catalogs.
-        def setup!(contenders, options)
-          configuration.runtime.setup!(providers: providers.used_by(contenders), tracker: remote_tracker(lineup(options), options))
+        def setup!(contenders, trackers)
+          configuration.runtime.setup!(providers: providers.used_by(contenders), tracker: trackers.remote)
           providers.verify!(contenders)
         end
 
@@ -156,75 +100,8 @@ module LLM
           save_warnings
         end
 
-        # Runs the experiments side by side, a progress bar each. What would
-        # print as a warning meanwhile, failed cases included, goes to
-        # {#warnings} instead.
-        #
-        # @param runs [Array<Experiment>]
-        # @param concurrency [Integer] experiments at once; 0 runs them all together
-        # @param budget [ErrorBudget, nil] stops the run once spent
-        # @return [RunOutcome]
-        def execute(runs, concurrency:, budget: nil)
-          summaries = Array.new(runs.size)
-          @budget = budget
-          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          warnings.capture { bars(runs, summaries, concurrency, budget) }
-          seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-          summaries.compact.each { |s| s.errors.each { warnings.record("[#{s.name}] #{it}") } }
-          RunOutcome.new(summaries: summaries.compact, seconds:)
-        end
-
-        # -j, else one experiment per CPU. Uncapped, a full lineup started
-        # every model x dataset pair at once: 140 experiments, each with its
-        # own pool of case threads, all fighting for the network and the screen.
-        #
-        # @return [Integer] experiments at once; 0 means all of them
-        # @raise [Error] on a negative or non-numeric -j
-        def concurrency(options)
-          value = options[:concurrency] || Etc.nprocessors
-          Integer(value).tap { raise Error, "--concurrency must be 0 or more, got #{value}" if it.negative? }
-        rescue ArgumentError, TypeError
-          raise Error, "--concurrency must be a whole number, got #{value.inspect}"
-        end
-
-        # Fails the command, after its report, when the error budget ran out.
-        #
-        # @return [void]
-        # @raise [Error] naming the limit
-        def abort_if_spent
-          raise Error, @budget.reason if @budget&.spent?
-        end
-
         # @return [Warnings] what this command has held back from the screen
         def warnings = @warnings ||= Warnings.new
-
-        def bars(runs, summaries, concurrency, budget)
-          ProgressBars.for(ui, colors: model_colors).run("Running #{runs.size} experiment#{"s" unless runs.size == 1}",
-            concurrent: concurrency.zero? || concurrency) do |multi|
-            labels = ProgressBars.labels(runs)
-            runs.each_with_index do |run, index|
-              multi.progress(labels[index], total: run.cases.size) do |bar|
-                next if budget&.spent?
-
-                summaries[index] = run.run(stop: -> { budget&.spent? },
-                  on_case: lambda { |result|
-                    budget&.record(result)
-                    bar.advance(as: result.errored? ? :failed : :ok)
-                  })
-              end
-            end
-          end
-        end
-
-        # @param names [Array<String>] as given to -d, possibly comma-separated; empty means every dataset
-        # @return [Array<String>]
-        # @raise [Error] on an unknown dataset, before anything is spent
-        def datasets(names)
-          names = names.flat_map { it.split(",") }.uniq
-          return discovery.datasets.tap { raise Error, "no datasets under #{discovery.root}" if it.empty? } if names.empty?
-
-          names.each { discovery.cases(dataset: it) }
-        end
 
         # Prints what the block writes, then the leaderboard, its glossary and
         # the scores, when the run's display is the terminal; see {ReportDispatcher}.
