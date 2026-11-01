@@ -124,7 +124,7 @@ module LLM
         # Captures the parsed flags and the settings that actually reached the
         # experiments. The former preserves the invocation; the latter records
         # defaults and expanded case/model selections that were implicit.
-        def serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:)
+        def serialize_run_options(config:, contenders:, datasets:, runs:, models:, dataset:, options:, seconds:)
           {
             command:   invocation.action.to_s,
             cli:       { models:, dataset:, **options },
@@ -142,7 +142,7 @@ module LLM
               parallelism:   Integer(options[:parallelism] || config.defaults["parallelism"]),
               concurrency:   concurrency(options),
               tracker:       options[:local] ? "none" : remote_tracker(config, options)&.tracker_name,
-              seconds:       @run_seconds
+              seconds:       seconds
             }
           }
         end
@@ -224,15 +224,15 @@ module LLM
         # @param runs [Array<Experiment>]
         # @param concurrency [Integer] experiments at once; 0 runs them all together
         # @param budget [ErrorBudget, nil] stops the run once spent
-        # @return [Array<Experiment::Summary>]
+        # @return [RunOutcome]
         def execute(runs, concurrency:, budget: nil)
           summaries = Array.new(runs.size)
           @budget = budget
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           warnings.capture { bars(runs, summaries, concurrency, budget) }
-          @run_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+          seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
           summaries.compact.each { |s| s.errors.each { warnings.record("[#{s.name}] #{it}") } }
-          summaries.compact
+          RunOutcome.new(summaries: summaries.compact, seconds:)
         end
 
         # -j, else one experiment per CPU. Uncapped, a full lineup started
@@ -350,7 +350,7 @@ module LLM
             open:) do |report|
             @report_metrics = report.metrics
             @weighted = report.weighted_score
-            terminal_report(report.summaries, output:, open:, scores:, totals_mode: options[:totals]) do |shown|
+            terminal_report(report.summaries, output:, open:, scores:, totals_mode: options[:totals], run_options:) do |shown|
               details&.call(shown)
             end
           end
@@ -364,30 +364,18 @@ module LLM
           save_warnings unless results[:display] == "tui"
         end
 
-        def terminal_report(summaries, output:, open:, scores:, totals_mode:, &details)
+        def terminal_report(summaries, output:, open:, scores:, totals_mode:, run_options:, &details)
           terminal = LLM::Evals::Render::Reports::Terminal.new(invocation:, writing_to: method(:writing_to), leaderboard: method(:leaderboard))
           path = terminal.call(summaries:, output:, scores:, totals_mode:) do |shown|
             details&.call(shown)
-            call_stats(shown)
+            stats = LLM::Evals::Render::Reports::CallStatsTable.new(CallStats.for_run(shown, run_options))
+            table(stats.rows, header: LLM::Evals::Render::Reports::CallStatsTable::HEADER, fill: 0)
           end
           status_box(:info, "Report written to #{relative(path)}", stream: err) if path
           save_warnings
           url = summaries.max_by { it.score || -1 }&.permalink
           status_box(:warning, "could not open #{url}", stream: err) if open && url && !configuration.runtime.browse(url)
         end
-
-        # Calls per provider, vendor and model; see {CallStats}.
-        #
-        # @param summaries [Array<Experiment::Summary>]
-        # @return [void]
-        def call_stats(summaries)
-          rows = CallStats.new(summaries, seconds: @run_seconds).rows.map do |row|
-            [row.name, row.requests, row.errors, row.per_second ? format("%.2f", row.per_second) : "-", seconds(row.latency), seconds(row.p95)]
-          end
-          table(rows, header: ["calls by provider, vendor, model", "requests", "errors", "req/s", "avg", "p95"], fill: 0)
-        end
-
-        def seconds(value) = value ? format("%.2fs", value) : "-"
 
         def effective_results(config, options)
           configured = config.results

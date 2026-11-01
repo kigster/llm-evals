@@ -14,8 +14,9 @@ RSpec.describe LLM::Evals::CallStats do
 
   def result(duration, errored: false) = instance_double(LLM::Evals::RunResult, duration: duration, errored?: errored)
 
-  def summary(provider, id, *results)
-    instance_double(LLM::Evals::Experiment::Summary, model: instance_double(LLM::Evals::Model, provider: provider, id: id), results: results)
+  def summary(provider, id, *results, label: id)
+    model = instance_double(LLM::Evals::Model, provider: provider, id: id, to_s: label)
+    instance_double(LLM::Evals::Experiment::Summary, model: model, results: results, worked_durations: results.reject(&:errored?).map(&:duration))
   end
 
   it "lists each provider, then its vendors and models, and no vendor row for a direct provider" do
@@ -39,8 +40,19 @@ RSpec.describe LLM::Evals::CallStats do
     expect(described_class.new(summaries, seconds: nil).rows.first.per_second).to be_nil
   end
 
-  describe ".percentile" do
-    it("takes the nearest rank") { expect(described_class.percentile((1..100).to_a, 0.95)).to eq(95) }
-    it("is nil with no values") { expect(described_class.percentile([], 0.95)).to be_nil }
+  it "gives each setting of a model its own row" do
+    low = summary(typesafe, "typesafe/jev", result(1.0), label: "typesafe/jev effort=low")
+    high = summary(typesafe, "typesafe/jev", result(2.0), label: "typesafe/jev effort=high")
+    expect(described_class.new([low, high], seconds: 1).rows.map(&:name)).to eq(["typesafe", "typesafe/typesafe/jev effort=low", "typesafe/typesafe/jev effort=high"])
+  end
+
+  describe ".for_run" do
+    it "reads the run's length as recorded" do
+      expect(described_class.for_run(summaries, { effective: { seconds: 10 } }).rows.first.per_second).to eq(0.5)
+    end
+
+    it "reads it back from JSON" do
+      expect(described_class.for_run(summaries, { "effective" => { "seconds" => 10 } }).rows.first.per_second).to eq(0.5)
+    end
   end
 end

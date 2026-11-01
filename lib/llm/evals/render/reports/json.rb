@@ -28,14 +28,11 @@ module LLM
               run_options:  json_value(run_options),
               metrics:      metrics.map { { name: it.name, description: it.description, aggregate: it.aggregate, primary: it.primary } },
               weights:      weighted_score&.weights,
-              call_stats:   CallStats.new(summaries, seconds: run_seconds(run_options)).rows.map(&:to_h),
+              call_stats:   CallStats.for_run(summaries, run_options).rows.map(&:to_h),
               summaries:    summaries.map { summary(it) }
             }
             ::JSON.pretty_generate(document)
           end
-
-          def self.run_seconds(run_options) = run_options.dig(:effective, :seconds) || run_options.dig("effective", "seconds")
-          private_class_method :run_seconds
 
           def self.json_value(value)
             case value

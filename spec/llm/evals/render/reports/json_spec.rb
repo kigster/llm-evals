@@ -66,7 +66,7 @@ RSpec.describe LLM::Evals::Render::Reports::JSON do
       model = instance_double(LLM::Evals::Model, id: "anthropic/a", provider: provider, settings: {})
       result = instance_double(LLM::Evals::RunResult, duration: 2.0, errored?: false)
       allow(described_class).to receive(:summary).and_return({})
-      summary = instance_double(LLM::Evals::Experiment::Summary, model: model, results: [result])
+      summary = instance_double(LLM::Evals::Experiment::Summary, model: model, results: [result], worked_durations: [2.0])
       document = JSON.parse(described_class.dump([summary], metrics: [], run_options: { effective: { seconds: 4.0 } }))
       expect(document["call_stats"].first).to include("name" => "openrouter", "requests" => 1, "per_second" => 0.25, "p95" => 2.0)
     end

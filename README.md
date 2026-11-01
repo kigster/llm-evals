@@ -454,7 +454,7 @@ weighted_score:
 
 `evals weights` prints each column's direction and real share of the score: `↓` in bold blue where low is good, `↑` in bold yellow where high is good. A scorer metric the weights leave out is listed in red with no values. Weights need not add up to 1.
 
-You can weight `score`, `errors`, `time`, `cost`, `latency`, `p95` and your scorer's metrics. `latency` and `p95` are the average and 95th percentile seconds of the calls that worked, while `time` is how long the experiment took, waiting included. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
+You can weight `score`, `errors`, `time`, `cost`, `latency`, `p95` and your scorer's metrics. `latency` and `p95` are the average and 95th percentile seconds of the calls that worked (across datasets, a contender's `p95` is the average of each dataset's, an approximation good enough to rank by), while `time` is how long the experiment took, waiting included. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
 
 #### Aborting a failing run
 
