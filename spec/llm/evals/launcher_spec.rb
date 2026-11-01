@@ -509,6 +509,15 @@ RSpec.describe LLM::Evals::Launcher do
     end
 
     it { expect(run_cli).to include("IOError: closed stream") }
+
+    it "counts it as failed on its bar" do
+      handles = []
+      allow(Dry::CLI::UI::Widgets::Progress::Handle).to receive(:new).and_wrap_original do |build, *args, **options|
+        build.call(*args, **options).tap { handles << it }
+      end
+      run_cli
+      expect(handles.sum { it.counts[:failed] }).to eq(1)
+    end
   end
 
   context "with compare over two datasets" do

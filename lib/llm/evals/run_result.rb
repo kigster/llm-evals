@@ -9,6 +9,9 @@ module LLM
 
       # @return [Boolean] whether the adapter raised rather than answered
       def failed? = !error.nil?
+
+      # @return [Boolean] whether the case went wrong, by raising or by a reply the model failed
+      def errored? = failed? || reply&.error? == true
     end
   end
 end

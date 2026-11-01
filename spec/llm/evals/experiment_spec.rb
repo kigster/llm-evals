@@ -16,7 +16,7 @@ RSpec.describe LLM::Evals::Experiment do
   it { expect { described_class.new(model: model, cases: [], adapter: adapter, scorer: scorer) }.to raise_error(ArgumentError, /at least one case/) }
 
   describe "#run" do
-    subject(:summary) { experiment.run(on_case: -> { ticks << 1 }) }
+    subject(:summary) { experiment.run(on_case: ->(result) { ticks << result }) }
 
     let!(:ticks) { [] }
 
@@ -46,8 +46,18 @@ RSpec.describe LLM::Evals::Experiment do
       expect(ticks.size).to eq(4)
     end
 
+    it "reports a junk reply as errored, and the good ones as not" do
+      summary
+      expect(ticks.count(&:errored?)).to eq(1)
+    end
+
     context "when the adapter raises" do
       before { allow(adapter).to receive(:call).and_raise(RuntimeError, "out of credits") }
+
+      it "reports each case as errored" do
+        summary
+        expect(ticks).to all(be_errored)
+      end
 
       it "counts the error and scores nothing" do
         expect(summary.errors).to all(match(%r{colors/\w+/00\d: RuntimeError: out of credits}))
