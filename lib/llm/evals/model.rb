@@ -52,7 +52,7 @@ module LLM
       # @param questions [Hash{String => Hash}]
       # @return [Completion]
       def ask(state:, questions:)
-        LLM::Evals.configuration.throttle.call(self) { provider.ask(self, state: state, questions: questions) }
+        @throttle.call(self) { provider.ask(self, state: state, questions: questions) }
       end
 
       # @return [String] e.g. "effort=low t=0.2"
