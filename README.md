@@ -425,7 +425,7 @@ typesafe:                    # requires TYPESAFE_API_KEY; request type "typesafe
     - jev-latest             # a bare name is the same as `- model: jev-latest`
 ```
 
-**Provider sections.** Each top-level key with `vendors:` or `models:` names a provider. An entry under `vendors:` becomes `<vendor>/<model>`, the OpenRouter id. An entry under `models:` becomes the provider's prefix and the name, such as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown provider or key is a configuration error naming the file. The old top-level `vendors:` and `direct:` are errors too.
+**Provider sections.** Each top-level key with `vendors:` or `models:` names a provider. An entry under `vendors:` becomes `<vendor>/<model>`, the OpenRouter id. An entry under `models:` becomes the provider's prefix and the name, such as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown provider or key is a configuration error naming the file. The old top-level `vendors:` and `direct:` are errors too; `evals upgrade-config` rewrites them, keeping your comments and leaving `<file>.bak`, and `-n` prints the result instead.
 
 **Settings.** `effort` and `temperature` take one value or a list, and lists multiply: `effort: [low, high]` with `temperature: [0.0, 0.7]` runs four experiments for that model. Anything left out falls back to `defaults`. Flags (`-e`, `-t`, `--max-tokens`, `-p`) beat both.
 

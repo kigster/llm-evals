@@ -679,6 +679,55 @@ RSpec.describe LLM::Evals::Launcher do
     it { run_cli && expect(stderr.string).to(include("no provider serves")) }
   end
 
+  context "with upgrade-config" do
+    let(:dir) { Dir.mktmpdir }
+    let(:lineup) { File.join(dir, "lineup.yml") }
+    let(:old) { "request_types: [prompt]\nvendors:\n  fake:\n    - model: other\n" }
+    let(:argv) { ["upgrade-config", "-C", lineup] }
+
+    before { File.write(lineup, old) }
+    after { FileUtils.remove_entry(dir) }
+
+    it "rewrites the file and keeps the old one" do
+      run_cli
+      expect(File.read(lineup)).to include("openrouter:\n  vendors:\n    fake:\n      models:\n")
+      expect(File.read("#{lineup}.bak")).to eq(old)
+    end
+
+    it "reports a missing file" do
+      FileUtils.rm(lineup)
+      run_cli
+      expect(stderr.string).to include("no config file at")
+    end
+
+    it "leaves no temporary file" do
+      run_cli
+      expect(File.exist?("#{lineup}.tmp")).to be(false)
+    end
+
+    it "refuses to overwrite an earlier backup" do
+      File.write("#{lineup}.bak", "precious")
+      run_cli
+      expect(stderr.string).to include("already exists")
+      expect(File.read(lineup)).to eq(old)
+    end
+
+    context "with --dry-run" do
+      let(:argv) { ["upgrade-config", "-n", "-C", lineup] }
+
+      it "prints the result and changes nothing" do
+        expect(run_cli).to include("openrouter:")
+        expect(File.read(lineup)).to eq(old)
+      end
+    end
+
+    context "when already current" do
+      let(:old) { "request_types: [prompt]\nfake:\n  models:\n    - other\n" }
+
+      it("says so") { expect(run_cli).to include("already in the current format") }
+    end
+  end
+
   context "with weights" do
     let(:dir) { Dir.mktmpdir }
     let(:lineup) { File.join(dir, "lineup.yml") }
