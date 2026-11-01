@@ -80,8 +80,7 @@ module LLM
         # @return [WeightedScore, nil] nil when the file sets none
         # @raise [Error] on a bad weight
         def weigh(config)
-          config.results # validate output settings before model calls start
-          config.error_budget
+          config.validate!
           weights = config.score_weights
           @weighted = weights.empty? ? nil : WeightedScore.new(weights, metrics: metrics.map(&:name))
         end
