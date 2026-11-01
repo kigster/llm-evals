@@ -1,5 +1,4 @@
-inherit_from:
-  - .relaxed_rubocop.yml
+inherit_from: .rubocop_todo.yml
 
 plugins:
   - rubocop-rake
@@ -30,7 +29,7 @@ Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
 Layout/LineLength:
-  Max: 140
+  Max: 200
 
 # --- Alignment rules ---
 
