@@ -205,7 +205,7 @@ module LLM
       # @raise [Error] on the old top-level keys, or a section naming no provider
       def sections
         retired = %w[vendors direct] & @data.keys
-        raise Error, "#{path}: #{retired.join(" and ")} no longer exist; list models under a provider, as `openrouter: { vendors: ... }` or `typesafe: { models: ... }`" if retired.any?
+        raise Error, "#{path}: #{retired.join(" and ")} no longer exist; run `evals upgrade-config` to move them under provider sections" if retired.any?
 
         names = providers.map(&:name)
         @data.filter_map do |name, section|
