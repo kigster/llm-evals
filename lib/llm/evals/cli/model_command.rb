@@ -140,7 +140,8 @@ module LLM
               defaults:      config.defaults,
               parallelism:   Integer(options[:parallelism] || config.defaults["parallelism"]),
               concurrency:   concurrency(options),
-              tracker:       options[:local] ? "none" : remote_tracker(config, options)&.tracker_name
+              tracker:       options[:local] ? "none" : remote_tracker(config, options)&.tracker_name,
+              seconds:       @run_seconds
             }
           }
         end
@@ -224,7 +225,9 @@ module LLM
         # @return [Array<Experiment::Summary>]
         def execute(runs, concurrency:)
           summaries = Array.new(runs.size)
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           warnings.capture { bars(runs, summaries, concurrency) }
+          @run_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
           summaries.compact.each { |s| s.errors.each { warnings.record("[#{s.name}] #{it}") } }
           summaries.compact
         end
@@ -346,12 +349,28 @@ module LLM
 
         def terminal_report(summaries, output:, open:, scores:, totals_mode:, &details)
           terminal = LLM::Evals::Render::Reports::Terminal.new(invocation:, writing_to: method(:writing_to), leaderboard: method(:leaderboard))
-          path = terminal.call(summaries:, output:, scores:, totals_mode:, &details)
+          path = terminal.call(summaries:, output:, scores:, totals_mode:) do |shown|
+            details&.call(shown)
+            call_stats(shown)
+          end
           status_box(:info, "Report written to #{relative(path)}", stream: err) if path
           save_warnings
           url = summaries.max_by { it.score || -1 }&.permalink
           status_box(:warning, "could not open #{url}", stream: err) if open && url && !configuration.runtime.browse(url)
         end
+
+        # Calls per provider, vendor and model; see {CallStats}.
+        #
+        # @param summaries [Array<Experiment::Summary>]
+        # @return [void]
+        def call_stats(summaries)
+          rows = CallStats.new(summaries, seconds: @run_seconds).rows.map do |row|
+            [row.name, row.requests, row.errors, row.per_second ? format("%.2f", row.per_second) : "-", seconds(row.latency), seconds(row.p95)]
+          end
+          table(rows, header: ["calls by provider, vendor, model", "requests", "errors", "req/s", "avg", "p95"], fill: 0)
+        end
+
+        def seconds(value) = value ? format("%.2fs", value) : "-"
 
         def effective_results(config, options)
           configured = config.results

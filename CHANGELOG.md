@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Report calls per provider, vendor and model: requests, errors, requests per second, average and 95th percentile latency, in the terminal and as `call_stats` in the JSON. Add `latency` and `p95` as columns `weighted_score` can weight.
 - Draw failed cases in red on the progress bars of `run` and `compare`, so a failing model or account shows while the run is still going.
 
 ## 0.4.0 (2026-10-30)

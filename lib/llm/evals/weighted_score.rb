@@ -30,7 +30,11 @@ module LLM
     # only: another model in the lineup moves everyone's.
     class WeightedScore
       # Columns compared on a log scale.
-      MAGNITUDES = %w[time cost].freeze
+      MAGNITUDES = %w[time cost latency p95].freeze
+
+      # Columns that add up over a contender's datasets; the rest average, which
+      # for p95 is an approximation good enough to rank by.
+      SUMMED = %w[errors time cost].freeze
 
       # The gem's columns that can be weighted, beside the metrics. `temp` is a
       # setting, not a result, and tokens are already in the cost.

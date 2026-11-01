@@ -452,7 +452,7 @@ weighted_score:
 
 `wscore = Σ(|weight| × goodness) / Σ|weight|`, from 0% to 100%, higher is better. Metrics count as they are, or as `1 - value` under a negative weight. When `errors` is weighted, errors come off the total: 20 points for one, 25 for two, 30 for three, and so on, down to 0%. A failed case has no metric scores, so the other weighted metrics do not reflect that failure. A contender with no errors earns the full positive contribution from the `errors` weight. `cost` and `time` go on a log scale between the lowest and highest in the table, so each doubling costs the same, however expensive the priciest model is. That makes a weighted score comparable only within one table.
 
-You can weight `score`, `errors`, `time`, `cost` and your scorer's metrics. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
+You can weight `score`, `errors`, `time`, `cost`, `latency`, `p95` and your scorer's metrics. `latency` and `p95` are the average and 95th percentile seconds of the calls that worked, while `time` is how long the experiment took, waiting included. Anything else, tokens included, is refused before a model is called. A contender missing a weighted value shows `-`, and one with errors cannot be named best. Without `weighted_score`, nothing changes.
 
 #### Request types
 

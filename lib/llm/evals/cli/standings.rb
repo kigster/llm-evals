@@ -83,10 +83,12 @@ module LLM
         # @return [Hash{String => Numeric, nil}]
         def weighted_row(summary)
           metrics.to_h { [it.name, summary.mean(it)] }.merge(
-            "score"  => summary.score,
-            "errors" => summary.errors.size,
-            "time"   => summary.duration,
-            "cost"   => summary.usage.cost_usd.to_f
+            "score"   => summary.score,
+            "errors"  => summary.errors.size,
+            "time"    => summary.duration,
+            "cost"    => summary.usage.cost_usd.to_f,
+            "latency" => summary.latency,
+            "p95"     => summary.latency_p95
           )
         end
 
@@ -101,7 +103,7 @@ module LLM
             total = values.sum(&:to_f)
             next [name, nil] if values.any?(&:nil?)
 
-            [name, ["errors", *WeightedScore::MAGNITUDES].include?(name) ? total : total / values.size]
+            [name, WeightedScore::SUMMED.include?(name) ? total : total / values.size]
           end
         end
 
