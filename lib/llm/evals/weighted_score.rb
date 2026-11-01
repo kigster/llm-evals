@@ -79,6 +79,14 @@ module LLM
         end
       end
 
+      # What each weight really counts for, since weights need not add up to 1.
+      #
+      # @return [Hash{String => Float}] by column, each from 0 to 1, largest first
+      def shares
+        total = weights.values.sum(&:abs).to_f
+        weights.sort_by { |_name, weight| -weight.abs }.to_h { |name, weight| [name, weight.abs / total] }
+      end
+
       # @return [String] the formula, with this lineup's weights, for the glossary
       def description
         "Σ(|weight| × goodness) / Σ|weight|, from 0% to 100%, and higher is better. A negative weight means that column is better low. " \
