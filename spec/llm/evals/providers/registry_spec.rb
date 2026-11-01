@@ -49,6 +49,13 @@ RSpec.describe LLM::Evals::Providers::Registry do
     expect(registry.model_for(contender("fake/x"))).to have_attributes(id: "fake/x", provider: fake, temperature: 0.1)
   end
 
+  it "gives the model the throttle it is handed" do
+    registry.register(fake)
+    throttle = instance_double(LLM::Evals::Throttle)
+    allow(throttle).to receive(:call).and_return(:gated)
+    expect(registry.model_for(contender("fake/x"), throttle:).complete(user: "hi")).to eq(:gated)
+  end
+
   describe "#admit" do
     let(:contenders) { [contender("acme/x"), direct_jev, contender("typesafe/jev-router")] }
 
