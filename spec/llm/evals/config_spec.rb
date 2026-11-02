@@ -200,7 +200,7 @@ RSpec.describe LLM::Evals::Config do
 
   describe "#results" do
     it "provides compatible defaults when the results section is absent" do
-      expect(config.results).to have_attributes(autosave: true, display_mode: "tui")
+      expect(config.results).to have_attributes(autosave: true, display_mode: "both")
       expect(config.results.destination).to eq(File.expand_path("evals/results", Dir.pwd))
       expect(config.results.temp_dir).to eq(File.expand_path("tmp", Dir.pwd))
     end

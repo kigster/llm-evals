@@ -5,12 +5,12 @@ RSpec.describe LLM::Evals::Config do
     def from(section) = described_class.from_hash(section, path: "lineup.yml")
 
     it "defaults every setting" do
-      expect(from({})).to have_attributes(autosave: true, display_mode: "tui", destination: File.expand_path("evals/results"), temp_dir: File.expand_path("tmp"))
+      expect(from({})).to have_attributes(autosave: true, display_mode: "both", destination: File.expand_path("evals/results"), temp_dir: File.expand_path("tmp"))
     end
 
     it { expect { from("yes") }.to raise_error(LLM::Evals::Error, "lineup.yml: results must be a mapping") }
     it { expect { from("autosave" => "yes") }.to raise_error(LLM::Evals::Error, "lineup.yml: results.autosave must be true or false") }
-    it { expect { from("display" => "x") }.to raise_error(LLM::Evals::Error, "lineup.yml: results.display must be one of none, tui, browser") }
+    it { expect { from("display" => "x") }.to raise_error(LLM::Evals::Error, "lineup.yml: results.display must be one of none, tui, browser, both") }
   end
 
   describe described_class::ScoreWeights do

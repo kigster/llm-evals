@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Breaking: `results.display` now defaults to `both`: every run prints the terminal summary, builds the HTML report from its JSON and opens it in the browser. Use `--display tui` or `--no-open` to turn that off.
+
+- Group the `run` and `compare` flags in `--help` under General, TUI and Browser Report.
+
 - Breaking: move every class out of the top of `LLM::Evals` into a module of its own. There are no aliases; rename as follows:
 
   | Module                 | Constants                                                                                      |

@@ -56,6 +56,10 @@ module LLM
                           .write(snapshot, &terminal)
         end
 
+        # @param format [String, nil] `tui`, `html` or `json`
+        # @return [String] the display this run settles on
+        def display(format = nil) = effective_results(format)[:display]
+
         private
 
         def strategy(format)
