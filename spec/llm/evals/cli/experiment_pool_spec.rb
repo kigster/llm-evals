@@ -55,6 +55,31 @@ RSpec.describe LLM::Evals::CLI::ExperimentPool do
     expect(budget).to be_spent
   end
 
+  context "with a streak" do
+    let(:streak) { LLM::Evals::Actions::ErrorStreak.new(limit: 1) }
+    let(:stops) { [] }
+
+    before do
+      allow(bars).to receive(:pausing).and_yield
+      allow(run).to receive(:run) do |on_case:, stop:|
+        on_case.call(result)
+        stops << stop.call
+        summary
+      end
+    end
+
+    it "stops the workers when the pause says so, with the bars still" do
+      pool.call([run], concurrency: 1, streak:, pause: ->(_failures) { false })
+      expect(stops).to eq([true])
+      expect(bars).to have_received(:pausing)
+    end
+
+    it "lets them carry on when the pause says so" do
+      pool.call([run], concurrency: 1, streak:, pause: ->(_failures) { true })
+      expect(stops).to eq([false])
+    end
+  end
+
   it "skips an experiment once the budget is spent" do
     budget = instance_double(LLM::Evals::Actions::ErrorBudget, spent?: true)
     expect(pool.call([run], concurrency: 1, budget:).summaries).to be_empty
