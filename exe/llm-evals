@@ -4,11 +4,61 @@
 # No Bundler here: a Gemfile in the user's directory must not decide which
 # gems load. The suite's own eval_helper.rb may `require "bundler/setup"`.
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+require "fileutils"
+require "yaml"
+require "date"
+
+module LLM
+  module Evals
+    # The key under which the semaphore file records the first run.
+    WARNING_HASH_KEY = "warning_shown_on"
+    # Where the semaphore file lives.
+    SEMAPHORE_DIR    = "#{Dir.home}/.local/share/llm-evals".freeze
+    # Remembers that the welcome was shown.
+    SEMAPHORE_FILE   = "#{SEMAPHORE_DIR}/warning-semaphore.yml".freeze
+
+    # What the semaphore file held.
+    SEMAPHORE_CONFIG = if File.size?(SEMAPHORE_FILE)
+                         YAML.safe_load_file(SEMAPHORE_FILE, aliases: true)
+                       else
+                         {}
+                       end
+
+    unless SEMAPHORE_CONFIG.is_a?(Hash) && SEMAPHORE_CONFIG[WARNING_HASH_KEY]
+      FileUtils.mkdir_p(SEMAPHORE_DIR)
+      File.write(SEMAPHORE_FILE, { WARNING_HASH_KEY => DateTime.now.to_s }.to_yaml)
+
+      warn "\e[0;33mWelcome to the llm-evals CLI!\n\n"
+
+      warn "\e[1;31mNOTE:  \e[0;33mThis gem comes with an executable named \e[1;32mevals\e[0;33m.\n"
+      warn "       You invoked 'llm-evals'. While we prefer that you use 'evals' for the CLI,"
+      warn "       we understand that sometimes commands such as 'evals' may clash with others."
+      warn "       For this reason you can use \e[1;32mllm-evals\e[0;33m if you prefer moving forward.\e[0m"
+      warn ""
+      warn "This message won't be shown again, and we thank you for using llm-evals!"
+
+      require "io/console"
+
+      $stdin.tty? && $stdin.raw do
+        $stderr.print "      Press any key to continue..."
+        waited = 0
+        delta = 0.1
+        loop do
+          if $stdin.wait_readable(0)
+            $stdin.read_nonblock(1)
+            break
+          end
+          sleep delta
+          waited += delta
+          if waited > 20
+            warn "\n      No key pressed after 20 seconds, continuing..."
+            break
+          end
+        end
+      end
+    end
+  end
+end
+
 require "llm/evals"
-
-puts "\e[1;31mERROR: \e[0;33mThis gem comes with an executable named 'evals'"
-puts "       You invoked 'llm-evals'. Please use 'evals' to use the gems's CLI.\n\e[0m"
-
-puts "Thanks for using llm-evals!"
-
-exit 0
+LLM::Evals::Launcher.new(ARGV).execute!

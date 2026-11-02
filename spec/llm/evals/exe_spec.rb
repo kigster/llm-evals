@@ -60,7 +60,7 @@ RSpec.describe "exe/evals" do
   end
 
   it "says what is missing without a suite" do
-    _stdout, stderr, status = run_exe("cases", from: Dir.tmpdir)
+    _stdout, stderr, status = run_exe("cases", "--no-search", from: Dir.tmpdir)
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("no suite is configured")
   end

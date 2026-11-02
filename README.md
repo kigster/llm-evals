@@ -142,14 +142,17 @@ The recipes change into each suite's folder and set `RUBYLIB` for the config-onl
 
 ### Where to run from
 
-`llm-evals` finds a suite by searching **upward from the current directory** for `evals/eval_helper.rb` or `evals/.llm-evals.config.yml`. The repository root has neither, so running there fails:
+`llm-evals` finds a suite by searching **upward from the current directory** for `evals/eval_helper.rb` or `evals/.llm-evals.config.yml`. If that finds nothing, it searches **up to four directories below** the current directory for `.llm-evals.config.yml`, skipping hidden directories and `node_modules`, `vendor`, `tmp`, `log`, `pkg` and `coverage`. The shallowest file wins, then the first by name. Run from the repository root, it finds a fixture:
 
 ```text
 $ bundle exec exe/evals cases
-error: no suite is configured: register an adapter and a scorer in evals/eval_helper.rb, ...
+┌ Info ────────────────────────────────────────────────────────────────────────┐
+│ Evals configuration: config_only_suite                                       │
+│ File: spec/fixtures/config_only_suite/evals/.llm-evals.config.yml            │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Run the command from a suite's folder (the parent of its `evals/` directory), or pass the helper path with `--helper`.
+A file the search finds runs from its project, the parent of `evals/` when it is inside one, so a relative `-o` lands there too. Your shell stays where it was. That green box is the first thing a run prints, and it follows the help. When there is no file, the box is a yellow warning. `--no-search` turns the search off, and `-C`/`--config` skips it.
 
 ### The toy suite (`eval_helper.rb` style)
 

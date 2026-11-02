@@ -8,7 +8,8 @@ module LLM
       # - a flat list, the jobs indented under the headline, with no tree;
       # - the headline's bar, which counts every case, in yellow;
       # - a finished job keeps its bar, full, with the time it took where the
-      #   ETA was, instead of turning into a one-line summary;
+      #   ETA was, instead of turning into a one-line summary; red says what failed,
+      #   so no count follows it;
       # - on a screen too short for every job, a finished row stays for
       #   {LINGER} seconds, since a short job would otherwise leave the screen
       #   before anyone saw it full: at two cases, its last frame is 50%;
@@ -40,6 +41,9 @@ module LLM
         SYNC_START = "\e[?2026h"
         # Ends the update {SYNC_START} began.
         SYNC_END = "\e[?2026l"
+
+        # Matches one color code, which takes no column, or one character, which does.
+        ANSI_OR_CHARACTER = /\e\[[\d;]*[A-Za-z]|./
 
         # Stands between a label's fixed columns and its model.
         MODEL_SEPARATOR = " | "
@@ -154,13 +158,24 @@ module LLM
         def redraw
           return if @paused
 
-          drawn = rows
+          drawn = rows.map { clipped(it) }
           cursor = terminal.cursor
           up = @drawn.positive? ? cursor.up(@drawn) : ""
           lines = drawn.map { "\r#{it}#{cursor.clear_line_after}\n" }.join
           below = drawn.size < @drawn ? cursor.clear_screen_down : ""
           terminal.print("#{SYNC_START}#{up}#{lines}#{below}#{SYNC_END}")
           @drawn = drawn.size
+        end
+
+        # Cuts a row to the screen's width, keeping its color codes. A row that
+        # wrapped would take two lines while {#redraw} counts one, and each frame
+        # would then start lower than the last, leaving the old ones on the screen.
+        #
+        # @param text [String] a row, perhaps colored
+        # @return [String]
+        def clipped(text)
+          room = terminal.width - 1
+          text.scan(ANSI_OR_CHARACTER).select { it.start_with?("\e") || (room -= 1) >= 0 }.join
         end
 
         # Overrides `Dry::CLI::UI::Widgets::Multi#headline`: live, it keeps its bar to the
@@ -173,7 +188,7 @@ module LLM
 
           finished = state != :running
           bar = full_meter(current, total, started, HEADLINE_COLOR, counts, (@seconds if finished))
-          "#{glyph(state)} #{title.ljust(width)} #{bar}#{finished ? noted(headline_note) : stopping}"
+          "#{glyph(state)} #{title.ljust(width)} #{bar}#{stopping unless finished}"
         end
 
         # Overrides `Dry::CLI::UI::Widgets::Multi#row`, so that a finished bar stays full
@@ -187,7 +202,7 @@ module LLM
 
           handle = job.handle
           bar = full_meter(handle.current, handle.total, job.started, handle.color, handle.counts, job.seconds.to_f)
-          "#{glyph(job.state)} #{job.label.ljust(width)} #{bar}#{noted(note(job))}"
+          "#{glyph(job.state)} #{job.label.ljust(width)} #{bar}"
         end
 
         # {#meter}, with the time taken in place of the ETA once seconds are known.

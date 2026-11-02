@@ -14,6 +14,7 @@ module LLM
         LEVELS = {
           info:    { title: " Info ", fg: :bright_white, bg: :blue },
           success: { title: " Success ", fg: :black, bg: :green },
+          found:   { title: " Info ", fg: :black, bg: :green },
           warning: { title: " Warning ", fg: :black, bg: :yellow },
           error:   { title: " Error ", fg: :bright_white, bg: :red }
         }.freeze

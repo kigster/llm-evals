@@ -14,7 +14,16 @@ module LLM
         DEFAULT_CONFIG = ".llm-evals.config.yml"
 
         attr_writer :adapter, :scorer
-        attr_reader :name, :root, :env_files, :cases_glob, :hooks, :providers, :trackers, :description
+        attr_reader :name,
+          :root,
+          :env_files,
+          :cases_glob,
+          :hooks,
+          :providers,
+          :trackers,
+          :description,
+          :config_path,
+          :started_in
 
         # @!attribute [w] adapter
         #   Registers the adapter, as {#adapter} does with an argument.
@@ -58,18 +67,28 @@ module LLM
         #   One line for the help's header.
         #   @return [String]
 
+        # @!attribute [r] config_path
+        #   The lineup file as set, which {#config} resolves against the root.
+        #   @return [String]
+
+        # @!attribute [r] started_in
+        #   The directory the command was typed in, which the search may have left.
+        #   @return [String]
+
         # Starts under the default name at the working directory, with no adapter or scorer.
         def initialize
-          @name = DEFAULT_NAME
-          @root = Dir.pwd
-          @env_files = []
-          @cases_glob = DEFAULT_GLOB
+          @name        = DEFAULT_NAME
+          @root        = Dir.pwd
+          @env_files   = []
+          @cases_glob  = DEFAULT_GLOB
           @config_path = DEFAULT_CONFIG
-          @hooks = []
-          @providers = Providers::Registry.default
-          @trackers = Trackers::Registry.default
+          @hooks       = []
+          @providers   = Providers::Registry.default
+          @trackers    = Trackers::Registry.default
           @description = "Run a suite of cases against one or more models and score the replies."
-          @project = nil
+          @project     = nil
+          @started_in  = Dir.pwd
+          @search      = false
         end
 
         # Names the suite. The name titles the help and tags the experiments.
@@ -81,10 +100,74 @@ module LLM
         # @param description [String, nil] one line for the help's header
         # @return [void]
         def suite(name, root:, env_files: [], description: nil)
-          @name = name
-          @root = File.expand_path(root)
-          @env_files = env_files.map { File.expand_path(it, @root) }
+          @name        = name
+          @root        = File.expand_path(root)
+          @env_files   = env_files.map { File.expand_path(it, @root) }
           @description = description if description
+        end
+
+        # @param path [String, nil] setting, relative to root; reading when nil
+        # @return [String] the absolute path of the lineup file, `.llm-evals.config.yml` at the root by default
+        def config(path = nil)
+          @config_path = path unless path.nil?
+          File.expand_path(@config_path, root)
+        end
+
+        # How many directories below the working directory the search goes.
+        MAX_SEARCH_DEPTH = 4
+
+        # Directories that hold other people's files or generated ones, never a suite.
+        SEARCH_SKIPS = %w[node_modules vendor tmp log pkg coverage].freeze
+
+        # The nearest `.llm-evals.config.yml` below a directory: the shallowest,
+        # then the first by name, so that the same tree always gives the same file.
+        # Hidden directories and {SEARCH_SKIPS} are not entered.
+        #
+        # @param from [String] the directory to search below
+        # @param max_depth [Integer] how many directories down to look
+        # @return [String, nil] the file's path, or nil when there is none
+        def self.search_config_file(from: Dir.pwd, max_depth: MAX_SEARCH_DEPTH)
+          level = [from]
+          max_depth.times do
+            level = level.flat_map { search_subdirectories(it) }
+            found = level.map { File.join(it, DEFAULT_CONFIG) }.find { File.file?(it) }
+            return found if found
+          end
+          nil
+        end
+
+        # @param dir [String]
+        # @return [Array<String>] the directories to enter, by name; none when unreadable
+        def self.search_subdirectories(dir)
+          Dir.children(dir).sort
+             .reject { it.start_with?(".") || SEARCH_SKIPS.include?(it) }
+             .map { File.join(dir, it) }
+             .select { File.directory?(it) && !File.symlink?(it) }
+        rescue SystemCallError
+          []
+        end
+        private_class_method :search_subdirectories
+
+        # Records where the command started, since the launcher may change directory to run it.
+        #
+        # @param dir [String] the directory the command was typed in
+        # @param search [Boolean] whether a search was allowed to run
+        # @return [void]
+        def located_from(dir, search:)
+          @started_in = dir
+          @search = search
+        end
+
+        # @return [Boolean] whether the lineup file exists
+        def config_found? = File.file?(config)
+
+        # @return [String] the lineup file's path, relative to where the command was typed
+        def relative_config = Pathname(config).relative_path_from(started_in).to_s
+
+        # @return [String] what to say when there is no lineup file
+        def config_missing_message
+          message = "Configuration file #{DEFAULT_CONFIG} was not found"
+          @search ? "#{message}, and the search #{MAX_SEARCH_DEPTH} directories down failed too" : message
         end
 
         # Where the cases are: a glob relative to root ending in the input file.
@@ -138,13 +221,6 @@ module LLM
           @trackers.register(klass)
         end
 
-        # @param path [String, nil] setting, relative to root; reading when nil
-        # @return [String] the absolute path of the lineup file, `.llm-evals.config.yml` at the root by default
-        def config(path = nil)
-          @config_path = path unless path.nil?
-          File.expand_path(@config_path, root)
-        end
-
         # @param name [String, nil] setting; reading when nil
         # @return [String, nil] the Braintrust project, when .llm-evals.config.yml does not name one
         def project(name = nil)
@@ -195,7 +271,7 @@ module LLM
             raise Error, "#{config}: require: #{feature} could not be loaded (#{e.message}); is its gem in the bundle?"
           end
           @adapter ||= instantiate("adapter", file.adapter_name)
-          @scorer ||= instantiate("scorer", file.scorer_name) # rubocop:disable Naming/MemoizedInstanceVariableName
+          @scorer  ||= instantiate("scorer", file.scorer_name) # rubocop:disable Naming/MemoizedInstanceVariableName
         end
 
         private

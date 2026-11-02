@@ -20,6 +20,31 @@ RSpec.describe LLM::Evals::CLI::ProgressBars do
     expect(bars.send(:row, job, 40)).to match(%r{\Afake/one {33}.* 100%  3/3  in 1\.5s|fake/one +\S+ 100%  3/3  in 1\.5s})
   end
 
+  describe "the screen's width" do
+    def visible(text) = text.gsub(/\e\[[\d;]*[A-Za-z]/, "")
+
+    it "lets the red bar say what failed, with no count after it" do
+      allow(job.handle).to receive(:counts).and_return({ ok: 1, aux: 0, failed: 2 })
+      row = visible(bars.send(:row, job, 40))
+      expect(row).not_to include("failed")
+      expect(row.length).to be < terminal.width
+    end
+
+    it "never lets a row wrap, however long" do
+      expect(bars.send(:clipped, "x" * 500).length).to eq(terminal.width - 1)
+    end
+
+    it "keeps color codes when cutting, which take no column" do
+      clipped = bars.send(:clipped, "\e[31m#{"x" * 500}\e[0m")
+      expect(clipped).to end_with("\e[0m")
+      expect(visible(clipped).length).to eq(terminal.width - 1)
+    end
+
+    it "leaves a short row alone" do
+      expect(bars.send(:clipped, "short")).to eq("short")
+    end
+  end
+
   describe "#pausing" do
     let(:drawn) { terminal.instance_variable_get(:@io).string }
 
