@@ -21,9 +21,9 @@ module LLM
         #
         # @param configuration [LLM::Evals::Runtime::Configuration]
         # @param color [Boolean]
-        # @param width [Integer] the box's whole width
+        # @param width [Integer] the box's whole width; a console reporting no size, as CI does, gets the narrowest
         # @return [String]
-        def dataset_conf_label(configuration:, color: false, width: IO.console&.winsize&.last || 80)
+        def dataset_conf_label(configuration:, color: false, width: IO.console&.winsize&.last.to_i.clamp(60..))
           box = StatusBox.new(width:, color:)
           return box.render(:warning, configuration.config_missing_message) unless configuration.config_found?
 
