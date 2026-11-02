@@ -29,6 +29,11 @@ RSpec.describe "exe/llm-evals" do
       expect(YAML.safe_load_file(semaphore)).to include("warning_shown_on" => a_string_matching(/\A\d{4}-\d{2}-\d{2}T/))
     end
 
+    it "welcomes even with warnings silenced, since it only ever shows once" do
+      _stdout, stderr, = Open3.capture3({ "HOME" => home, "RUBYOPT" => "#{ENV.fetch("RUBYOPT", "")} -W0" }, RbConfig.ruby, exe, "version", chdir: home)
+      expect(stderr).to include("Welcome to the llm-evals CLI!")
+    end
+
     it "does not wait for a key without a terminal" do
       expect(Timeout.timeout(15) { run }.last).to be_success
     end
