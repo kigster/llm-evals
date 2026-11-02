@@ -25,3 +25,5 @@ group :development, :test do
   gem "simplecov", "~> 1.3"
   gem "yard", "~> 0.9"
 end
+
+gem "docscribe"
