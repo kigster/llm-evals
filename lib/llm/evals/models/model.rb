@@ -11,6 +11,18 @@ module LLM
 
         attr_reader :id, :provider, :settings
 
+        # @!attribute [r] id
+        #   The model id as the lineup names it, with any provider prefix.
+        #   @return [String]
+
+        # @!attribute [r] provider
+        #   What answers the calls.
+        #   @return [Providers::Base]
+
+        # @!attribute [r] settings
+        #   Frozen; effort, temperature and max_tokens, and whatever else a provider accepts.
+        #   @return [Hash{Symbol => Object}]
+
         # @param id [String] the model id as the lineup names it, e.g. "anthropic/claude-haiku-5.5"
         # @param provider [Providers::Base] what answers {#complete}
         # @param settings [Hash{Symbol => Object}] effort, temperature, max_tokens; nil leaves the model's default
@@ -39,8 +51,8 @@ module LLM
 
         # One call. Transport failures raise; they are the run's errors, not the model's.
         #
-        # @param system [String, nil]
-        # @param user [String]
+        # @param system [String, nil] the system prompt
+        # @param user [String] the user prompt
         # @param json [Boolean] ask the provider for a JSON object reply where it supports that
         # @return [Results::ProviderResponse]
         def complete(user:, system: nil, json: true)
@@ -49,8 +61,8 @@ module LLM
 
         # One request of typed questions, for a provider of request type `typesafe`.
         #
-        # @param state [Object]
-        # @param questions [Hash{String => Hash}]
+        # @param state [Object] what the questions are about, as the suite's adapter shaped it
+        # @param questions [Hash{String => Hash}] by name: type, instructions, criteria
         # @return [Results::ProviderResponse]
         def ask(state:, questions:)
           @throttle.call(self) { provider.ask(self, state: state, questions: questions) }
@@ -65,6 +77,9 @@ module LLM
         # @return [String] e.g. "effort=low t=0.2"
         def label = "effort=#{effort_label} t=#{temperature_label}"
 
+        # How an experiment's name starts.
+        #
+        # @return [String] e.g. "anthropic/claude-haiku-5.5 effort=low t=0.2"
         def to_s = "#{id} #{label}"
       end
     end

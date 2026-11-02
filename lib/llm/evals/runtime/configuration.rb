@@ -6,13 +6,59 @@ module LLM
       # Everything a suite tells the gem, through {LLM::Evals.configure}.
       # Paths are relative to `root`, the directory the eval helper lives in.
       class Configuration
+        # Where cases are looked for, relative to the root, when a suite does not say.
         DEFAULT_GLOB = "datasets/*/cases/**/input.txt"
+        # The suite's name until it calls {#suite}.
         DEFAULT_NAME = "llm-evals"
+        # The lineup file's name, also searched for by {Helper.locate}.
         DEFAULT_CONFIG = ".llm-evals.config.yml"
 
         attr_writer :adapter, :scorer
         attr_reader :name, :root, :env_files, :cases_glob, :hooks, :providers, :trackers, :description
 
+        # @!attribute [w] adapter
+        #   Registers the adapter, as {#adapter} does with an argument.
+        #   @param value [Actions::Adapter, nil]
+        #   @return [Actions::Adapter, nil]
+
+        # @!attribute [w] scorer
+        #   Registers the scorer, as {#scorer} does with an argument.
+        #   @param value [Scoring::Scorer, nil]
+        #   @return [Scoring::Scorer, nil]
+
+        # @!attribute [r] name
+        #   Titles the help and tags the experiments.
+        #   @return [String]
+
+        # @!attribute [r] root
+        #   The absolute directory other paths are relative to; the helper's directory.
+        #   @return [String]
+
+        # @!attribute [r] env_files
+        #   Absolute paths of the dotenv files to load, whether or not they exist.
+        #   @return [Array<String>]
+
+        # @!attribute [r] cases_glob
+        #   Finds each case's input file, relative to the root.
+        #   @return [String]
+
+        # @!attribute [r] hooks
+        #   The {#before_run} blocks, in the order given.
+        #   @return [Array<Proc>]
+
+        # @!attribute [r] providers
+        #   The defaults, plus any added through {#provider}.
+        #   @return [Providers::Registry]
+
+        # @!attribute [r] trackers
+        #   The defaults, plus any added through {#tracker}.
+        #   @return [Trackers::Registry]
+
+        # @!attribute [r] description
+        #   One line for the help's header.
+        #   @return [String]
+
+        # Starts under the default name at the working directory, with no adapter or scorer.
         def initialize
           @name = DEFAULT_NAME
           @root = Dir.pwd
@@ -50,30 +96,25 @@ module LLM
           @cases_glob = glob
         end
 
-        # @param object [Actions::Adapter]
-        # @return [void]
-
         # @param object [Actions::Adapter, nil] setting; reading when nil
-        # @return [Actions::Adapter]
+        # @return [Actions::Adapter, nil] nil until one is registered
         def adapter(object = nil)
           @adapter = object unless object.nil?
           @adapter
         end
 
         # @param object [Scoring::Scorer, nil] setting; reading when nil
-        # @return [Scoring::Scorer]
+        # @return [Scoring::Scorer, nil] nil until one is registered
         def scorer(object = nil)
           @scorer = object unless object.nil?
           @scorer
         end
 
-        # @param object [Scoring::Scorer]
-        # @return [void]
-
         # Runs once, after the env files are loaded and before any model is
         # called. The place to reset a library that read ENV at require time.
         #
-        # @yield
+        # @param block [Proc] the hook
+        # @yield once, with no arguments
         # @return [void]
         def before_run(&block)
           @hooks << block
@@ -159,7 +200,10 @@ module LLM
 
         private
 
+        # @param key [String] the config key, for the error
+        # @param name [String, nil] the constant's name
         # @return [Object, nil] a new instance of the named constant; nil when no name is set
+        # @raise [Error] when the constant is unknown or wants arguments
         def instantiate(key, name)
           return nil if name.nil? || name.empty?
 

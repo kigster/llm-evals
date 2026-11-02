@@ -43,8 +43,12 @@ module LLM
 
         # What errors take off the total: {ERROR_BASE} + {ERROR_STEP} per error.
         ERROR_BASE = 0.15
+        # The second part of the errors' penalty; see {ERROR_BASE}.
         ERROR_STEP = 0.05
 
+        # The weights as the lineup gives them, without those that are zero.
+        #
+        # @return [Hash{String => Numeric}] by column
         attr_reader :weights
 
         # @param weights [Hash{String => Numeric}]
@@ -98,12 +102,24 @@ module LLM
 
         private
 
+        # What errors take off the total, when errors carry a weight.
+        #
+        # @param errors [Numeric, nil] the row's error count; only nil when errors are not weighted
+        # @param present [Hash{String => Numeric}] the weights of the columns some row has
+        # @return [Float] 0.0 for a clean row
         def penalty(errors, present)
           return 0.0 unless present.key?("errors") && errors.positive?
 
           ERROR_BASE + (ERROR_STEP * errors)
         end
 
+        # How good one value is, from 0 to 1, with its weight's sign applied.
+        #
+        # @param name [String] the column
+        # @param value [Numeric] the row's value
+        # @param weight [Numeric] the column's weight, not zero
+        # @param rows [Array<Hash{String => Numeric, nil}>] the group it is compared with
+        # @return [Float] 1.0 for errors, which {#penalty} accounts for, and where the group is equal
         def goodness(name, value, weight, rows)
           return 1.0 if name == "errors"
 
@@ -115,6 +131,8 @@ module LLM
 
         # A zero has no logarithm, so it stands at half the lowest above zero.
         #
+        # @param value [Numeric] the value to place
+        # @param values [Array<Numeric>] the group's values, the value among them
         # @return [Float, nil] from 0 at the lowest to 1 at the highest; nil when all are equal
         def position(value, values)
           highest = values.max

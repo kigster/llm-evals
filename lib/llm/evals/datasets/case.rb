@@ -21,15 +21,23 @@ module LLM
       # @!attribute [r] metadata
       #   @return [Hash{Symbol => Object}] number, difficulty, and any `expected_error`
       Case = Data.define(:id, :dataset, :variant, :input, :expected, :path, :metadata) do
+        # Absent for a case that sits directly under its variant's folder.
+        #
         # @return [Integer, nil] the NNN/ level as a number, when the case has one
         def number = metadata[:number]
 
+        # A metadata.json may override this, so it need not equal {#number}.
+        #
         # @return [Integer] the number, else 0; what the tables sort and show difficulty by
         def difficulty = metadata.fetch(:difficulty, number || 0)
 
+        # What reports group by, since the same id can recur in another dataset.
+        #
         # @return [String] "dataset/id", unique across the suite
         def key = "#{dataset}/#{id}"
 
+        # A false here is what {Actions::Verify} reports through `metadata[:expected_error]`.
+        #
         # @return [Boolean] whether expected.json was there and parsed
         def expected? = !expected.nil?
       end

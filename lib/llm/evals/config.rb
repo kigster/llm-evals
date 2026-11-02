@@ -55,20 +55,31 @@ module LLM
       # question API, whose request shape the first such suite will define.
       REQUEST_TYPES = %w[prompt typesafe].freeze
 
+      # The settings a contender gets when neither the file's `defaults:` nor its entry says.
       BUILTIN = {
         "effort" => "default", "temperature" => 0.2, "max_tokens" => 4096, "parallelism" => 4
       }.freeze
 
+      # The values `results.display` accepts.
       RESULT_DISPLAYS = %w[none tui browser both].freeze
 
       # The displays that draw in the terminal, and those that write the HTML report.
       TERMINAL_DISPLAYS = %w[tui both].freeze
+      # The displays that write the HTML report.
       BROWSER_DISPLAYS = %w[browser both].freeze
 
       # What a lineup that says nothing gets: the terminal summary, and the HTML report opened in the browser.
       DEFAULT_DISPLAY = "both"
 
       attr_reader :path, :providers
+
+      # @!attribute [r] path
+      #   The lineup file, named in every error, whether or not it exists.
+      #   @return [String]
+
+      # @!attribute [r] providers
+      #   Whose names the file's sections may use.
+      #   @return [Providers::Registry]
 
       # Reads every section a run needs before anything is spent, so a bad one
       # fails the run rather than the report at its end.
@@ -106,8 +117,8 @@ module LLM
 
       # A tracker's own section of the file, e.g. `logfire: { include_replies: true }`.
       #
-      # @param name [String]
-      # @return [Hash]
+      # @param name [String] the tracker's name, which is also its section's key
+      # @return [Hash{String => Object}] empty when the file has no such mapping
       def tracker_options(name) = (@data[name.to_s].is_a?(Hash) ? @data[name.to_s] : {}).transform_keys(&:to_s)
 
       # @return [Array<String>] the `require:` key, one path or a list
@@ -179,7 +190,7 @@ module LLM
       # The models given on the command line, at the file's default settings.
       #
       # @param models [Array<String>] model ids
-      # @param overrides [Hash{String => Object}]
+      # @param overrides [Hash{String => Object}] values from the command line; nil entries are ignored
       # @return [Array<Models::Contender>]
       def contenders_for(models, overrides = {})
         builder = ContenderBuilder.new(defaults:, overrides:)
@@ -188,6 +199,10 @@ module LLM
 
       private
 
+      # The provider sections, read once on first use, so a bad file fails only the commands that read them.
+      #
+      # @return [Listing]
+      # @raise [Error] on a section, entry or limit the file format does not have
       def listing = @listing ||= Listing.new(@data, path:, providers:)
     end
   end

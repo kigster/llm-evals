@@ -19,9 +19,17 @@ module LLM
 
         private
 
+        # Overrides {ModelCommand#details}. A single experiment's breakdown needs no title.
+        #
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @return [void]
         def details(summaries) = summaries.each { breakdown(it, titled: summaries.size > 1) }
 
         # One row per case: its score, and whatever the scorer diagnosed.
+        #
+        # @param summary [Actions::Experiment::Summary]
+        # @param titled [Boolean] print its name above the table
+        # @return [void]
         def breakdown(summary, titled: false)
           status_box :info, summary.name if titled
           rows = summary.results.map do |result|
@@ -32,6 +40,9 @@ module LLM
 
         # The scorer's diagnostics, one per line, rendered without knowing
         # their shape: "field: value" for a Hash, each item for an Array.
+        #
+        # @param result [Results::RunResult]
+        # @return [String] the error instead, for a case whose call failed
         def diagnosis(result)
           return result.error if result.failed?
 

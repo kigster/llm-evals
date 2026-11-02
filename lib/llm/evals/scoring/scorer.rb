@@ -13,6 +13,7 @@ module LLM
         # so a metric missing here is a metric nobody sees.
         #
         # @return [Array<Metric>]
+        # @raise [NotImplementedError] until a subclass overrides it
         def metrics
           raise NotImplementedError, "#{self.class}#metrics must return an Array of LLM::Evals::Scoring::Metric"
         end
@@ -24,6 +25,7 @@ module LLM
         # @param reply [Results::Reply] never one with `error` set; the runner scores those 0 itself
         # @param context [Hash] what {Actions::Adapter#context} returned for the case
         # @return [Results::Score]
+        # @raise [NotImplementedError] until a subclass overrides it
         def call(kase, reply, context:)
           raise NotImplementedError, "#{self.class}#call(kase, reply, context:) must return an LLM::Evals::Results::Score"
         end
@@ -38,7 +40,7 @@ module LLM
 
         # One short cell describing the case in `llm-evals cases`, e.g. "5/8 answered".
         #
-        # @param kase [Datasets::Case]
+        # @param _kase [Datasets::Case] the case to describe
         # @return [String, nil] nil for the generic fallback
         def summary(_kase) = nil
       end

@@ -13,15 +13,16 @@ module LLM
         # Called once per dataset before its cases run; load what the dataset
         # shares (a schema, a flow definition) here, outside the threads.
         #
-        # @param dataset [String]
+        # @param _dataset [String] the dataset's name
         # @return [void]
         def prepare(_dataset) = nil
 
         # Runs one case against one model.
         #
-        # @param kase [Datasets::Case]
-        # @param model [Models::Model]
+        # @param kase [Datasets::Case] the case to run
+        # @param model [Models::Model] the model at the setting under test
         # @return [Results::Reply] with `error:` set when the model failed to answer; raise for a transport failure
+        # @raise [NotImplementedError] until a subclass overrides it
         def call(kase, model:)
           raise NotImplementedError, "#{self.class}#call(kase, model:) must return an LLM::Evals::Results::Reply"
         end
@@ -29,13 +30,13 @@ module LLM
         # What the scorer needs to know about a case beyond the case itself: a
         # schema, field types, the prompt. Passed to {Scoring::Scorer#call} as `context:`.
         #
-        # @param kase [Datasets::Case]
+        # @param _kase [Datasets::Case] the case about to be scored
         # @return [Hash]
         def context(_kase) = {}
 
         # Offline checks of a dataset's shared files. `llm-evals verify` prints them.
         #
-        # @param dataset [String]
+        # @param _dataset [String] the dataset's name
         # @return [Array<String>] problems; empty when the dataset is sound
         def verify(_dataset) = []
 

@@ -7,6 +7,10 @@ module LLM
       class Verify < Command
         desc "Check every case's input and expected answer, through the adapter and the scorer (no API calls)"
 
+        # Boxes every problem on STDERR, then fails, so a script sees the exit status.
+        #
+        # @return [void]
+        # @raise [Error] when any case has a problem
         def call(**)
           all = discovery.all
           failures = LLM::Evals::Actions::Verify.new(configuration).problems

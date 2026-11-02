@@ -8,6 +8,8 @@ module LLM
           # The page's overall ranking: one entry per model at one setting, over
           # every dataset. Only complete contenders are ranked.
           class GlobalStandings
+            # Does nothing until {#to_h}.
+            #
             # @param summaries [Array<Actions::Experiment::Summary>]
             # @param ranking [Ranking]
             def initialize(summaries, ranking)
@@ -15,6 +17,8 @@ module LLM
               @ranking = ranking
             end
 
+            # Coverage is judged against every case key seen in the report, across all datasets.
+            #
             # @return [Hash{Symbol => Object}] report entries and ranking after coverage checks
             def to_h
               expected_keys = @summaries.flat_map(&:results).map { it.case.key }.uniq
@@ -27,6 +31,7 @@ module LLM
 
             private
 
+            # @return [Array<Array<Actions::Experiment::Summary>>] one group per model at one setting
             def groups = @summaries.group_by { [it.model.key, it.model.effort, it.model.temperature] }.values
           end
         end

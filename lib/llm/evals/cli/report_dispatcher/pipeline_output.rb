@@ -6,7 +6,12 @@ module LLM
       class ReportDispatcher
         # No format, or tui: the display and autosave the lineup configures.
         class PipelineOutput < Output
+          # Lets the pipeline decide, then says what it wrote.
+          #
           # @see Output#write
+          # @param snapshot [Snapshot]
+          # @yield [report] draw the decoded report in the terminal, when the display does
+          # @return [void]
           def write(snapshot, &)
             results = snapshot.results
             result = pipeline.call(**snapshot.document, autosave: results[:autosave], display: results[:display], open: snapshot.open, &)
@@ -17,6 +22,11 @@ module LLM
 
           private
 
+          # Says where the page went, and warns when it would not open.
+          #
+          # @param result [LLM::Evals::Render::Reports::Pipeline::Result]
+          # @param open [Boolean] whether opening it was asked for
+          # @return [void]
           def announce_page(result, open)
             console.written("HTML report", result.html_path)
             console.could_not_open(result.html_path) if open && !result.browser_opened

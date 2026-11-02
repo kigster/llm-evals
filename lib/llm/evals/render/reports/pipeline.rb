@@ -11,8 +11,23 @@ module LLM
         # Writes the canonical JSON snapshot and passes that snapshot to the
         # selected display. Temporary snapshots are removed after presentation.
         class Pipeline
+          # Where a run's reports went. A path is nil for anything not kept; `browser_opened`
+          # is nil when no attempt was made.
+          #
+          # @!attribute [r] json_path
+          #   @return [String, nil] the saved snapshot; nil when it was only temporary
+          # @!attribute [r] html_path
+          #   @return [String, nil]
+          # @!attribute [r] css_path
+          #   @return [String, nil]
+          # @!attribute [r] js_path
+          #   @return [String, nil]
+          # @!attribute [r] browser_opened
+          #   @return [Boolean, nil]
           Result = Data.define(:json_path, :html_path, :css_path, :js_path, :browser_opened)
 
+          # Reduces the project's name to a slug for use in file names.
+          #
           # @param providers [Providers::Registry]
           # @param runtime [Runtime::Environment]
           # @param destination [String]
@@ -26,6 +41,10 @@ module LLM
             @project = project.to_s.downcase.gsub(/[^a-z0-9]+/, "-").delete_prefix("-").delete_suffix("-")
           end
 
+          # Decodes the snapshot back before showing it, so a live report and `render`
+          # display exactly the same thing. Does nothing without autosave or a display.
+          # `display` is none, tui, browser or both.
+          #
           # @param summaries [Array<Actions::Experiment::Summary>]
           # @param metrics [Array<Scoring::Metric>]
           # @param weighted_score [Scoring::WeightedScore, nil]
@@ -34,6 +53,8 @@ module LLM
           # @param display [String]
           # @param open [Boolean]
           # @yield [report] display the decoded JSON in the terminal
+          # @yieldparam report [JSON::Loaded]
+          # @raise [Error] when the snapshot cannot be decoded
           # @return [Result]
           def call(summaries:, metrics:, weighted_score:, run_options:, autosave:, display:, open:)
             return Result.new(nil, nil, nil, nil, nil) unless autosave || display != "none"
@@ -51,6 +72,8 @@ module LLM
             FileUtils.rm_f(json_path) if defined?(json_path) && json_path && !autosave
           end
 
+          # The snapshot's document, to a file or back to the caller.
+          #
           # @param summaries [Array<Actions::Experiment::Summary>]
           # @param metrics [Array<Scoring::Metric>]
           # @param weighted_score [Scoring::WeightedScore, nil]
@@ -68,6 +91,8 @@ module LLM
             end
           end
 
+          # Rebuilds the HTML from a snapshot, standing alone with its assets embedded.
+          #
           # @param json [String] serialized run results
           # @param path [String, nil] nil returns HTML text to the caller
           # @return [String, nil] HTML text when no path was supplied
@@ -110,6 +135,12 @@ module LLM
 
           private
 
+          # Writes the page and its assets next to each other, and opens it when asked.
+          #
+          # @param report [JSON::Loaded]
+          # @param open [Boolean] whether to open the page in the browser
+          # @return [Array(String, String, String, Boolean, nil)] the HTML, CSS and JS paths, and
+          #   whether the browser opened; nil when `open` is false
           def render_browser(report, open:)
             FileUtils.mkdir_p(@destination)
             html_path = report_path(@destination, "html")
@@ -125,12 +156,24 @@ module LLM
             [html_path, css_path, js_path, browser_opened]
           end
 
+          # Timestamped, so results accumulate rather than replace each other.
+          #
+          # @param directory [String]
+          # @param stamp [String] see {#timestamp}
+          # @param extension [String]
+          # @return [String]
           def artifact_path(directory, stamp, extension)
             File.join(directory, "#{@project}.results.#{stamp}.#{extension}")
           end
 
+          # Down to the microsecond, so runs started together do not overwrite each other.
+          #
+          # @return [String]
           def timestamp = Time.now.strftime("%Y-%m-%d.%H%M%S%6N")
 
+          # Creates an empty file now to claim the name; {#call} removes it afterwards.
+          #
+          # @return [String] the path
           def temporary_json_path
             FileUtils.mkdir_p(@temp_dir)
             file = Tempfile.create(["#{@project}.results.", ".json"], @temp_dir)

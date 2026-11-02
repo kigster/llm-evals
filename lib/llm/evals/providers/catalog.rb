@@ -11,8 +11,11 @@ module LLM
       module Catalog
         module_function
 
-        # @param url [String]
-        # @param headers [Hash{String => String}]
+        # Performs the GET. A status other than 2xx, a socket failure, a timeout and
+        # an unparsable body all come out as the same {Error}.
+        #
+        # @param url [String] the list's address
+        # @param headers [Hash{String => String}] request headers, such as credentials
         # @return [Hash] the parsed JSON body
         # @raise [Error] when the list cannot be read
         def fetch(url, headers = {})

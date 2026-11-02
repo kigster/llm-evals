@@ -27,9 +27,11 @@ module LLM
                        "ranks every experiment by it."
         }.freeze
 
+        # Built per call by {ModelCommand#leaderboard}, since the metrics and the stream can change between calls.
+        #
         # @param standings [Standings]
         # @param table [#call] draws rows, as {Command#table}
-        # @param out [IO] where the lines between tables go
+        # @param out [IO, Dry::CLI::UI::Report] where the lines between tables go
         # @param pastel [Pastel]
         # @param colors [ModelColors] shared with the progress bars, so a model keeps its color
         def initialize(standings:, table:, out:, pastel:, colors:)
@@ -75,6 +77,8 @@ module LLM
           overall&.call
         end
 
+        # A metric named like one of the gem's columns replaces its entry, and wscore leads when the file sets weights.
+        #
         # @return [Array<Array(String, String)>] the metrics' descriptions, then the gem's columns, less any a metric took the name of
         def glossary
           described = metrics.map { [it.name, it.description.to_s.empty? ? "(no description)" : it.description] } + GLOSSARY.reject { |term, _| metrics.any? { it.name == term } }.to_a
@@ -85,25 +89,71 @@ module LLM
 
         attr_reader :standings, :table, :out, :pastel, :colors
 
+        # @!attribute [r] standings
+        #   The arithmetic behind every ranking here.
+        #   @return [Standings]
+
+        # @!attribute [r] table
+        #   Draws rows through the command, so they follow its stream.
+        #   @return [#call]
+
+        # @!attribute [r] out
+        #   Where the lines between tables go.
+        #   @return [IO, Dry::CLI::UI::Report]
+
+        # @!attribute [r] pastel
+        #   Paints the winners' models.
+        #   @return [Pastel]
+
+        # @!attribute [r] colors
+        #   Shared with the progress bars.
+        #   @return [ModelColors]
+
+        # The columns the suite scores.
+        #
+        # @return [Array<Scoring::Metric>]
         def metrics = standings.metrics
 
+        # The metric the ranking reads.
+        #
+        # @return [Scoring::Metric]
         def primary = standings.primary
 
+        # Doubles as the question of whether the file sets weights at all.
+        #
+        # @return [Scoring::WeightedScore, nil] nil when it does not
         def weighted = standings.weighted
 
+        # Prints the best value over every dataset.
+        #
+        # @param label [String] what follows "best value", with its leading space
+        # @param value [Float] the primary metric, as a fraction
+        # @param cost [Float] in US dollars
+        # @return [void]
         def value_line(label, value, cost)
           out.puts "best value#{label}: #{format("%.1f%%", value * 100)} at #{dollars(cost)}, " \
                    "the cheapest within #{(Standings::VALUE_MARGIN * 100).round} points of the best #{primary.name}"
         end
 
+        # Prints the best weighted score over every dataset.
+        #
+        # @param label [String] what follows "best wscore", with its leading space
+        # @param value [Float] the weighted score, as a fraction
+        # @return [void]
         def weighted_line(label, value)
           out.puts "best wscore#{label}: #{format("%.1f%%", value * 100)}, by the weights in weighted_score"
         end
 
+        # Names a contender in the conclusions over every dataset, by model and effort.
+        #
+        # @param summary [Actions::Experiment::Summary] any of the contender's experiments
+        # @return [String]
         def contender_label(summary) = "#{summary.model.id} effort=#{summary.model.effort_label}"
 
         # The selected totals view: one aggregate table, one per variant, or both.
         #
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @param mode [String] `overall`, `variant` or `both`
         # @return [Proc, nil] prints the conclusions over every dataset, for after
         #   everything else; nil over a single dataset
         def totals(summaries, mode: "overall")
@@ -131,6 +181,8 @@ module LLM
           end
         end
 
+        # One row per contender, with the best value highlighted.
+        #
         # @param groups [Array<Hash>] from {Standings#contender_groups}
         # @return [void]
         def contender_table(groups)
@@ -147,6 +199,9 @@ module LLM
 
         # Every experiment by its mean score, best first, with its cost and its
         # Braintrust page. URLs are never wrapped, so they stay clickable.
+        #
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @return [void]
         def score_table(summaries)
           weights = standings.weighted_scores(summaries)
           rows = summaries.sort_by { -(it.score || -1) }.map do |s|
@@ -163,6 +218,7 @@ module LLM
         # @param label [String] the name of what the block reads
         # @yieldparam summary [Actions::Experiment::Summary]
         # @yieldreturn [Float]
+        # @return [void]
         def winners(title, summaries, label)
           return if summaries.empty?
 

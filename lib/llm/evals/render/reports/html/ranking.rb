@@ -8,10 +8,14 @@ module LLM
           # How the page measures a contender and ranks a group of them. Standings
           # and dataset sections differ in what they group, never in this.
           class Ranking
+            # Without a score, or after any failure, a result has nothing to contribute.
+            #
             # @param result [Results::RunResult]
-            # @return [Boolean] whether the result counts for nothing
+            # @return [Boolean, nil] whether the result counts for nothing; nil, which is falsy, for a scored run with no reply
             def self.failed?(result) = !result.score || result.failed? || result.reply&.error?
 
+            # Holds no per-group state, so standings and sections can share one.
+            #
             # @param metrics [Array<Scoring::Metric>]
             # @param weighted_score [Scoring::WeightedScore, nil]
             def initialize(metrics:, weighted_score:)
@@ -19,9 +23,14 @@ module LLM
               @weighted_score = weighted_score
             end
 
+            # The metric marked primary, or "score" when none is; what ranks without a weighted score.
+            #
             # @return [String]
             def primary_metric = @metrics.find(&:primary)&.name || "score"
 
+            # Measures one contender. Complete means every expected case succeeded with no failures,
+            # and only a complete contender may be ranked. Repeat runs of a case count once.
+            #
             # @param group [Array<Actions::Experiment::Summary>]
             # @param expected_keys [Array<String>]
             # @return [Hash{Symbol => Object}] model coverage and score inputs
@@ -54,12 +63,20 @@ module LLM
 
             private
 
+            # Means per metric, plus the columns {Scoring::WeightedScore} reads besides.
+            #
+            # @param group [Array<Actions::Experiment::Summary>] the contender's experiments
+            # @param results [Array<Results::RunResult>] its runs, one per case
+            # @param failures [Integer] how many of those failed
+            # @return [Hash{String => Numeric, nil}] by metric name, plus "score", "errors", "time" and "cost"
             def row(group, results, failures)
               metric_means = @metrics.to_h { |metric| [metric.name, mean(results.filter_map { it.score&.metrics&.fetch(metric.name, nil) })] }
               scores = results.filter_map { it.score&.value unless it.failed? || it.reply&.error? }
               metric_means.merge("score" => mean(scores), "errors" => failures, "time" => group.sum(&:duration), "cost" => group.sum { it.usage.cost_usd })
             end
 
+            # @param values [Array<Numeric>]
+            # @return [Float, nil] nil with no values
             def mean(values) = values.empty? ? nil : values.sum.fdiv(values.size)
           end
         end

@@ -6,6 +6,8 @@ module LLM
       # Runs the experiments side by side, a progress bar each. What would print
       # as a warning meanwhile, failed cases included, goes to the warnings instead.
       class ExperimentPool
+        # Holds only collaborators; nothing runs until {#call}.
+        #
         # @param console [Dry::CLI::UI::Console]
         # @param colors [ModelColors]
         # @param warnings [Results::Warnings]
@@ -15,6 +17,8 @@ module LLM
           @warnings = warnings
         end
 
+        # Returns once every experiment has ended; one the budget stopped before it began has no summary.
+        #
         # @param runs [Array<Actions::Experiment>]
         # @param concurrency [Integer] experiments at once; 0 runs them all together
         # @param budget [Actions::ErrorBudget, nil] stops the run once spent
@@ -30,6 +34,14 @@ module LLM
 
         private
 
+        # Draws a bar per run and fills summaries by position, so they keep the order
+        # given whichever finishes first. A run the budget stopped before it began leaves a nil.
+        #
+        # @param runs [Array<Actions::Experiment>]
+        # @param summaries [Array<Actions::Experiment::Summary, nil>] written in place, one slot per run
+        # @param concurrency [Integer] experiments at once; 0 runs them all together
+        # @param budget [Actions::ErrorBudget, nil]
+        # @return [void]
         def bars(runs, summaries, concurrency, budget)
           ProgressBars.for(@console, colors: @colors).run("Running #{runs.size} experiment#{"s" unless runs.size == 1}",
             concurrent: concurrency.zero? || concurrency) do |multi|

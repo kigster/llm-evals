@@ -7,8 +7,11 @@ module LLM
       # checked and read once, so that a file wrong in either way is refused
       # whichever of the two a command asks for first.
       class Listing
+        # The keys a provider section may have.
         SECTION_KEYS = %w[rate_limit vendors models].freeze
+        # The keys an entry under `vendors:` may have.
         VENDOR_KEYS = %w[rate_limit models].freeze
+        # The keys one line under `models:` may have.
         ENTRY_KEYS = %w[model effort temperature max_tokens rate_limit].freeze
 
         # What marks a mapping as meant for a provider, under any name. Other
@@ -16,6 +19,13 @@ module LLM
         MARKERS = %w[vendors models model rate_limit].freeze
 
         # One line under `models:`.
+        #
+        # @!attribute [r] provider
+        #   @return [Providers::Base] the section it was listed under
+        # @!attribute [r] id
+        #   @return [String] the id a provider recognises
+        # @!attribute [r] settings
+        #   @return [Hash{String => Object}] the line as the file has it, with `model` as a key
         Entry = Data.define(:provider, :id, :settings)
 
         # @return [Array<Entry>] in the file's order
@@ -40,7 +50,17 @@ module LLM
 
         attr_reader :path, :providers
 
+        # @!attribute [r] path
+        #   The lineup file, named in every error.
+        #   @return [String]
+
+        # @!attribute [r] providers
+        #   Whose names the sections may use.
+        #   @return [Providers::Registry]
+
+        # @param data [Hash] the whole file
         # @return [Array<Array(Providers::Base, Hash)>] the file's provider sections
+        # @raise [Error] on a retired key, an unknown provider or an unknown key
         def sections(data)
           retired = %w[vendors direct] & data.keys
           raise Error, "#{path}: #{retired.join(" and ")} no longer exist; run `evals upgrade-config` to move them under provider sections" if retired.any?
@@ -55,6 +75,12 @@ module LLM
           end
         end
 
+        # Collects one provider section's limits and models, those under its vendors first.
+        #
+        # @param provider [Providers::Base] the section's provider
+        # @param section [Hash] the section as the file has it
+        # @return [void]
+        # @raise [Error] on a section the file format does not have
         def read(provider, section)
           limit(provider.name, section)
           vendors = section["vendors"] || {}
@@ -70,6 +96,15 @@ module LLM
           list(provider, provider.name, section, "#{provider.name}/", provider.prefix.to_s)
         end
 
+        # Adds each line of a `models:` list to {#entries}, and any limit it sets to {#limits}.
+        #
+        # @param provider [Providers::Base] the section's provider
+        # @param owner [String] the vendor or provider that lists them, for errors
+        # @param listing [Hash] the mapping holding `models:`
+        # @param scope [String] prepended to the model name to key its limit
+        # @param prefix [String] prepended to the model name to make its id
+        # @return [void]
+        # @raise [Error] on an entry without a model, or with an unknown key
         def list(provider, owner, listing, scope, prefix)
           Array(listing["models"]).each do |entry|
             entry = { "model" => entry } if entry.is_a?(String)
@@ -81,6 +116,13 @@ module LLM
           end
         end
 
+        # Refuses keys the format does not have, so a typo is not ignored.
+        #
+        # @param owner [String] names the mapping in the error
+        # @param mapping [Hash] the mapping to check
+        # @param keys [Array<String>] the keys it may have
+        # @return [void]
+        # @raise [Error] on any other key
         def known!(owner, mapping, keys)
           unknown = mapping.keys - keys
           raise Error, "#{path}: unknown keys under #{owner}: #{unknown.join(", ")}; known: #{keys.join(", ")}" if unknown.any?
@@ -88,6 +130,11 @@ module LLM
 
         # A scope has one limit, so a model listed twice, say at two efforts, may
         # set it once: the second would otherwise replace the first in silence.
+        #
+        # @param scope [String] the key {Models::Throttle} looks the limit up by
+        # @param owner [Hash] the mapping that may hold `rate_limit:`
+        # @return [void]
+        # @raise [Error] on a limit that is malformed or set twice
         def limit(scope, owner)
           given = owner["rate_limit"]
           return if given.nil?

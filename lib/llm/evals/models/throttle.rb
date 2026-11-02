@@ -21,8 +21,8 @@ module LLM
         # `per_minute`, evenly spaced. A burst is spent once and never refills, so
         # this is a head start and not a token bucket.
         class Limit
-          # @param burst [Integer]
-          # @param per_minute [Integer]
+          # @param burst [Integer] calls let through at once, before any spacing
+          # @param per_minute [Integer] the evenly spaced rate after that
           def initialize(burst:, per_minute:)
             @burst = burst
             @queue = Limiter::RateQueue.new(per_minute, interval: 60, balanced: true)
@@ -38,12 +38,15 @@ module LLM
           end
         end
 
+        # Tries of one call, the first included, before its error stands.
         MAX_ATTEMPTS = 5
+        # The longest growing delay, in seconds, when a provider asks for none.
         MAX_BACKOFF = 30
 
         # A provider asking for longer than this has really said no.
         MAX_PAUSE = 300
 
+        # The fiber-local key holding the seconds this thread has waited here.
         WAITED = :llm_evals_throttle_waited
 
         # Runs the block and says how long it spent waiting here, so that latency
@@ -90,19 +93,32 @@ module LLM
 
         private
 
+        # Waits out the vendor's pause, then every limit, narrowest first.
+        #
+        # @param model [Model] the model being called
+        # @param vendor [String] the scope a pause would shut
+        # @return [void]
         def admit(model, vendor)
           hold(vendor)
           scopes(model).reverse_each { @limits[it]&.acquire }
         end
 
+        # @param model [Model] the model being called
         # @return [Array<String>] "p", "p/vendor", "p/vendor/model"; "p", "p/model" for a provider with no vendors
         def scopes(model)
           parts = model.name.split("/")
           (0..parts.size).map { [model.provider.name, *parts.first(it)].join("/") }
         end
 
+        # What a retryable failure shuts: the vendor, or the whole provider when it has no vendors.
+        #
+        # @param model [Model] the model being called
+        # @return [String] the scope
         def vendor_scope(model) = scopes(model)[model.name.include?("/") ? 1 : 0]
 
+        # @param provider [Providers::Base] says whether the error is retryable, and how long it asked
+        # @param error [StandardError] what the call raised
+        # @param attempts [Integer] tries so far, this one included
         # @return [Numeric, nil] seconds to wait before another attempt; nil to give up
         def delay(provider, error, attempts)
           return unless attempts < MAX_ATTEMPTS && provider.retryable?(error)
@@ -113,16 +129,30 @@ module LLM
           asked unless asked > MAX_PAUSE
         end
 
+        # Shuts a scope for every thread, never shortening a pause already in force.
+        #
+        # @param scope [String] the scope to shut
+        # @param seconds [Numeric] how long from now
+        # @return [void]
         def pause(scope, seconds)
           @lock.synchronize { @paused_until[scope] = [@paused_until[scope], now + seconds].max }
         end
 
+        # Sleeps until a scope is open, checking again in case another thread extended the pause.
+        #
+        # @param scope [String] the scope to wait on
+        # @return [void]
         def hold(scope)
           while (left = @lock.synchronize { @paused_until[scope] } - now).positive?
             @sleeper.call(left)
           end
         end
 
+        # Adds the time the block takes to this thread's total, even when it raises.
+        #
+        # @yield the wait to measure
+        # @yieldreturn [Object]
+        # @return [Object] the block's value
         def waiting
           started = now
           yield
@@ -130,6 +160,9 @@ module LLM
           Thread.current[WAITED] = Thread.current[WAITED].to_f + (now - started)
         end
 
+        # A clock that wall-clock changes cannot move.
+        #
+        # @return [Float] monotonic seconds
         def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
     end

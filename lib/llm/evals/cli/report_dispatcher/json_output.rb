@@ -7,7 +7,11 @@ module LLM
         # --format json: the snapshot itself, saved beside the others unless -o
         # names a place for it.
         class JsonOutput < Output
+          # Writes the document, or prints it for `-o -`.
+          #
           # @see Output#write
+          # @param snapshot [Snapshot]
+          # @return [void]
           def write(snapshot)
             if snapshot.output.nil? || snapshot.output.empty?
               console.written("JSON report", pipeline.save_json(**snapshot.document))

@@ -10,7 +10,25 @@ module LLM
       # do, and the provider's name for a direct provider's entry. It travels with the
       # contender rather than being read back out of the id, so `typesafe/jev-router`
       # (Jev on OpenRouter) and a direct `typesafe/jev-latest` can never be confused.
+      #
+      # @!attribute [r] model
+      #   @return [String] the model id, as the lineup names it
+      # @!attribute [r] effort
+      #   @return [String, nil] reasoning effort; "default" or nil sends none
+      # @!attribute [r] temperature
+      #   @return [Numeric, String, nil] sampling temperature; "default" or nil sends none
+      # @!attribute [r] max_tokens
+      #   @return [Integer, nil] output token cap; nil sends none
+      # @!attribute [r] provider
+      #   @return [Symbol, nil] a direct provider's name; nil when the id picks the provider
       Contender = Data.define(:model, :effort, :temperature, :max_tokens, :provider) do
+        # Gives everything but the model a default, so `-m` needs to name only that.
+        #
+        # @param model [String] the model id, as the lineup names it
+        # @param effort [String, nil] reasoning effort
+        # @param temperature [Numeric, String, nil] sampling temperature
+        # @param max_tokens [Integer, nil] output token cap
+        # @param provider [Symbol, nil] a direct provider's name
         def initialize(model:, effort: "default", temperature: "default", max_tokens: nil, provider: nil) = super
 
         # @return [Boolean] whether the entry came from a direct provider's section

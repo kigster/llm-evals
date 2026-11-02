@@ -15,6 +15,11 @@ module LLM
 
         option :config, aliases: ["-C"], desc: "The lineup file (default: the suite's .llm-evals.config.yml)"
 
+        # Prints each weighted column's share, and in red the metrics no weight covers.
+        #
+        # @param config [String, nil] the lineup file; nil for the suite's
+        # @return [void]
+        # @raise [Error] when the file sets no weights
         def call(config: nil, **)
           lineup = config ? Config.new(File.expand_path(config)) : configuration.lineup
           weights = lineup.score_weights
@@ -29,6 +34,10 @@ module LLM
 
         private
 
+        # A negative weight means less is better.
+        #
+        # @param name [String]
+        # @param weight [Numeric]
         # @return [String] the column, marked with the direction that is good for it
         def direction(name, weight)
           weight.negative? ? pastel.bold.blue("↓ #{name}") : pastel.bold.yellow("↑ #{name}")

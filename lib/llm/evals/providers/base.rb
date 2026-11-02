@@ -16,6 +16,7 @@ module LLM
         # A suite admits a provider only when its config lists this type.
         #
         # @return [Symbol]
+        # @raise [NotImplementedError] unless a subclass overrides it
         def request_type
           raise NotImplementedError, "#{self.class}#request_type must be one of #{Config::REQUEST_TYPES.join(", ")}"
         end
@@ -33,23 +34,36 @@ module LLM
         # @return [Boolean]
         def direct? = false
 
+        # Dasherized from the class name; a subclass overrides it when the brand is
+        # spelled differently.
+        #
         # @return [String] short name, for messages and the leaderboard
         def name = self.class.name.split("::").last.gsub(/([a-z\d])([A-Z])/, '\1-\2').downcase
 
+        # Matches on {#prefix}, so most subclasses override that instead of this.
+        #
         # @param model_id [String] as the lineup names it
         # @return [Boolean] whether this provider serves the model
         def serves?(model_id) = model_id.start_with?(prefix)
 
+        # Overridden by a subclass whose ids share a namespace.
+        #
         # @return [String] the id prefix this provider claims; "" claims everything
         def prefix = ""
 
+        # Strips {#prefix}, so the lineup's namespacing never reaches the API.
+        #
         # @param model_id [String]
         # @return [String] the id as the provider's API knows it
         def model_name(model_id) = model_id.delete_prefix(prefix)
 
+        # {Registry#keys_for} collects these across the lineup.
+        #
         # @return [Array<String>] environment variables a run through this provider needs
         def env_keys = []
 
+        # {EFFORTS} unless a subclass narrows or empties it.
+        #
         # @return [Array<String>] the efforts the `-e` flag accepts for this provider's models
         def efforts = EFFORTS
 
@@ -62,44 +76,58 @@ module LLM
 
         # Prepares the client once per process, after the env files loaded.
         #
-        # @option options [String] :app_name what the client tells the API the caller is
-        # @return [void]
+        # @overload setup!(app_name:)
+        #   @param app_name [String] what the client tells the API the caller is
+        #   @return [void]
         def setup!(**) = nil
 
-        # @param model [Models::Model]
-        # @param system [String, nil]
-        # @param user [String]
-        # @param json [Boolean]
+        # One chat completion, for a provider of request type `prompt`.
+        #
+        # @param model [Models::Model] the model and settings to call
+        # @param system [String, nil] the system prompt, if any
+        # @param user [String] the user prompt
+        # @param json [Boolean] whether to ask for a JSON object reply
         # @return [Results::ProviderResponse]
+        # @raise [NotImplementedError] unless a subclass overrides it
         def complete(model, system:, user:, json: true)
           raise NotImplementedError, "#{self.class}#complete must return an LLM::Evals::Results::ProviderResponse"
         end
 
-        # @param model [Models::Model]
-        # @param state [Object]
-        # @param questions [Hash{String => Hash}]
+        # One request of typed questions, for a provider whose API answers them.
+        #
+        # @param model [Models::Model] the model to ask
+        # @param state [Object] what the questions are about; any JSON-encodable value
+        # @param questions [Hash{String => Hash}] by name
         # @return [Results::ProviderResponse]
+        # @raise [NotImplementedError] unless a subclass overrides it
         def ask(model, state:, questions:)
           raise NotImplementedError, "#{self.class} does not answer typed questions"
         end
 
-        # @param error [StandardError] what a call raised
+        # {Models::Throttle} asks this after a failed call; false by default, so a
+        # provider that says nothing is never retried.
+        #
+        # @param _error [StandardError] what a call raised
         # @return [Boolean] whether the same call may work later
         def retryable?(_error) = false
 
-        # @param error [StandardError] what a call raised
+        # {Models::Throttle} uses this instead of its own backoff when it is not nil.
+        #
+        # @param _error [StandardError] what a call raised
         # @return [Numeric, nil] the seconds the API asked to wait, if it did
         def retry_after(_error) = nil
 
-        # @param contender [Models::Contender]
-        # @param throttle [Models::Throttle]
+        # Builds the callable model for a lineup entry, on this provider.
+        #
+        # @param contender [Models::Contender] the lineup entry
+        # @param throttle [Models::Throttle] what the model's calls pass through
         # @return [Models::Model]
         def model_for(contender, throttle: Models::Throttle.new) = Models::Model.new(id: contender.model, provider: self, settings: contender.settings, throttle:)
 
         # Every id in `model_ids` the provider does not list.
         #
-        # @param model_ids [Array<String>]
-        # @return [Array<String>]
+        # @param model_ids [Array<String>] ids as the lineup names them
+        # @return [Array<String>] none when the provider cannot list its models
         def unknown(model_ids)
           listed = catalog
           listed.nil? ? [] : model_ids - listed

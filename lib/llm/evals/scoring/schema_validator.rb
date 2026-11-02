@@ -11,8 +11,12 @@ module LLM
       # {TYPES}, `enum` lists the allowed values for enum and multi_enum, and a
       # nullable field accepts nil (the text never answered it).
       class SchemaValidator
+        # The types a field may declare.
         TYPES = %i[boolean integer number string enum multi_enum].freeze
 
+        # The map as given, with String names, and each spec normalized to type, enum and nullable.
+        #
+        # @return [Hash{String => Hash{Symbol => Object}}]
         attr_reader :fields
 
         # @param fields [Hash{String, Symbol => Hash}]
@@ -44,8 +48,8 @@ module LLM
           problems
         end
 
-        # @param values [Hash]
-        # @return [Boolean]
+        # @param values [Hash] String or Symbol keys
+        # @return [Boolean] whether {#problems} finds none
         def valid?(values) = problems(values).empty?
 
         # @param spec [Hash] one field's normalized spec
@@ -66,6 +70,11 @@ module LLM
 
         private
 
+        # Checks that a multi_enum is a list holding only allowed values.
+        #
+        # @param spec [Hash] one field's normalized spec
+        # @param value [Object] the field's non-nil value
+        # @return [String, nil] what is wrong with the value, or nil
         def multi_enum_problem(spec, value)
           return "#{value.inspect} is not an array" unless value.is_a?(Array)
 
@@ -73,6 +82,13 @@ module LLM
           "#{stray.join(", ")} not in #{spec[:enum].join("|")}" if stray.any?
         end
 
+        # Accepts `values:` as a synonym for `enum:`, and makes allowed values Strings.
+        #
+        # @param name [String, Symbol] the field, for the error
+        # @param spec [Hash] the field's spec, with String or Symbol keys
+        # @return [Hash{Symbol => Object}] with type, enum and nullable
+        # @raise [ArgumentError] on a type outside {TYPES}
+        # @raise [KeyError] when the spec has no type
         def normalize(name, spec)
           spec = spec.transform_keys(&:to_sym)
           type = spec.fetch(:type).to_sym

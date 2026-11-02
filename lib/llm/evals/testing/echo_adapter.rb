@@ -8,11 +8,16 @@ module LLM
       # is not one as the model's failure. The toy suite runs on it, and a
       # new suite can start from it.
       class EchoAdapter < Actions::Adapter
+        # The system prompt sent with every case.
         SYSTEM = "Answer with a single JSON object and nothing else."
+        # Matches the Markdown code fences some models wrap JSON in, for stripping.
         FENCE = /\A```(?:json)?\s*|\s*```\z/
 
-        # @param kase [Datasets::Case]
-        # @param model [Models::Model]
+        # Overrides {Actions::Adapter#call}. Failures to parse become the reply's
+        # error; transport errors raise, as they do from {Models::Model#complete}.
+        #
+        # @param kase [Datasets::Case] the case whose input is the prompt
+        # @param model [Models::Model] the model to call
         # @return [Results::Reply]
         def call(kase, model:)
           provider_response = model.complete(system: SYSTEM, user: kase.input, json: true)

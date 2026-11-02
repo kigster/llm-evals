@@ -38,15 +38,23 @@ module LLM
         # Tells the terminal to show a frame only once all of it has arrived.
         # Terminals that do not know these ignore them.
         SYNC_START = "\e[?2026h"
+        # Ends the update {SYNC_START} began.
         SYNC_END = "\e[?2026l"
 
         # Stands between a label's fixed columns and its model.
         MODEL_SEPARATOR = " | "
 
+        # Set by {.for}, to share the colors with whatever draws the models next.
+        #
+        # @return [ModelColors]
+        # @param value [ModelColors]
         attr_writer :model_colors
 
+        # Reaches into the console's private stream, clock and config, which dry-cli-ui offers no other way to pass along.
+        #
         # @param console [Dry::CLI::UI::Console] the command's ui, whose stream, clock and settings it draws with
         # @param colors [ModelColors] shared with whatever else draws the models
+        # @return [ProgressBars]
         def self.for(console, colors: ModelColors.new)
           new(console.send(:err), clock: console.send(:clock), config: console.send(:config)).tap { it.model_colors = colors }
         end
@@ -68,25 +76,38 @@ module LLM
 
         private
 
+        # Overrides `Dry::CLI::UI::Widgets::Multi#label_width`: never under {LABEL_WIDTH}, and with room for the indent.
+        #
         # @return [Integer]
         def label_width = [LABEL_WIDTH, title.length, *jobs.map { it.label.length }].max + INDENT.length
 
+        # Overrides `Dry::CLI::UI::Widgets::Multi#rows`: a flat list, each job indented and its model painted.
+        #
+        # @return [Array<String>] the headline, then one row per job shown
         def rows
           width = label_width
           [headline(width), *visible.map { "#{INDENT}#{painted(row(it, width - INDENT.length))}" }]
         end
 
+        # Paints only what follows {MODEL_SEPARATOR}, leaving the meter's colors alone.
+        #
         # @param text [String] a job's row, whose label holds the width it was padded to
         # @return [String] the row with its model in that model's color
         def painted(text)
           text.sub(/(?<=#{Regexp.escape(MODEL_SEPARATOR)})\S+/) { terminal.pastel.public_send(model_colors[it], it) }
         end
 
+        # Stands in for a bar built without {.for}.
+        #
+        # @return [ModelColors]
         def model_colors = @model_colors ||= ModelColors.new
 
         # The running jobs and those just finished, in the order declared. The
         # finished get at most half the rows, newest first: when jobs end
         # faster than rows linger, the oldest must not hold the screen.
+        # Overrides `Dry::CLI::UI::Widgets::Multi#visible`.
+        #
+        # @return [Array<Dry::CLI::UI::Widgets::Multi::Job>]
         def visible
           return super unless crowded? && state == :running
 
@@ -96,10 +117,23 @@ module LLM
           jobs & (finished + jobs.select { it.state == :running }.first(slots - finished.size))
         end
 
+        # Whether a finished job still gets its row.
+        #
+        # @param job [Dry::CLI::UI::Widgets::Multi::Job]
+        # @param now [Float] by the clock
+        # @return [Boolean]
         def lingering?(job, now) = ENDED.include?(job.state) && now - finished_at(job) < LINGER
 
+        # Derived, since a job records when it started and how long it took.
+        #
+        # @param job [Dry::CLI::UI::Widgets::Multi::Job] one that has ended
+        # @return [Float] by the clock
         def finished_at(job) = job.started + job.seconds
 
+        # Overrides `Dry::CLI::UI::Widgets::Multi#redraw`, which clears the screen below
+        # first and flickers with many rows; clears only when the frame got shorter.
+        #
+        # @return [void]
         def redraw
           drawn = rows
           cursor = terminal.cursor
@@ -110,6 +144,11 @@ module LLM
           @drawn = drawn.size
         end
 
+        # Overrides `Dry::CLI::UI::Widgets::Multi#headline`: live, it keeps its bar to the
+        # end, in yellow, with the time taken in place of the ETA.
+        #
+        # @param width [Integer] the columns its title is padded to
+        # @return [String]
         def headline(width)
           return super unless live?
 
@@ -118,6 +157,12 @@ module LLM
           "#{glyph(state)} #{title.ljust(width)} #{bar}#{finished ? noted(headline_note) : stopping}"
         end
 
+        # Overrides `Dry::CLI::UI::Widgets::Multi#row`, so that a finished bar stays full
+        # instead of turning into a one-line summary.
+        #
+        # @param job [Dry::CLI::UI::Widgets::Multi::Job]
+        # @param width [Integer] the columns its label is padded to
+        # @return [String]
         def row(job, width)
           return super unless ENDED.include?(job.state) && !spinner?(job) && live?
 
@@ -127,6 +172,14 @@ module LLM
         end
 
         # {#meter}, with the time taken in place of the ETA once seconds are known.
+        #
+        # @param done [Integer]
+        # @param all [Integer, nil]
+        # @param since [Float] when the work started, by the clock
+        # @param color [Symbol, nil] the bar's own color, if any
+        # @param tally [Hash{Symbol => Integer}, nil] units by outcome
+        # @param seconds [Float, nil] the time taken; nil while the work runs
+        # @return [String]
         def full_meter(done, all, since, color, tally, seconds)
           return meter(done, all, since, color, tally) if seconds.nil?
 

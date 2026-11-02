@@ -6,7 +6,18 @@ module LLM
       # The `results:` section: where completed runs are saved and how they are
       # presented. Paths are rooted at the caller's working directory, so the same
       # config works from a project root or when invoked by a task runner.
+      #
+      # @!attribute [r] autosave
+      #   @return [Boolean] whether completed runs are saved under {#destination}
+      # @!attribute [r] destination
+      #   @return [String] absolute directory for saved runs
+      # @!attribute [r] temp_dir
+      #   @return [String] absolute directory for the temporary JSON used when autosave is off
+      # @!attribute [r] display_mode
+      #   @return [String] one of {RESULT_DISPLAYS}
       Results = Data.define(:autosave, :destination, :temp_dir, :display_mode) do
+        # Applies the defaults, checks the types, and roots the paths at the working directory.
+        #
         # @param section [Object] the section as the file has it
         # @param path [String] names the file in an error
         # @return [Results]

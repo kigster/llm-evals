@@ -6,6 +6,8 @@ module LLM
       # Who runs: the models named on the command line, or every model the lineup
       # lists, less those whose provider cannot produce what the suite declares.
       class ContenderSelector
+        # Holds only collaborators; nothing is resolved until {#call}.
+        #
         # @param config [Config]
         # @param providers [Providers::Registry]
         # @param warnings [Results::Warnings] records each refusal
@@ -15,6 +17,8 @@ module LLM
           @warnings = warnings
         end
 
+        # Settles the lineup before anything is spent on it.
+        #
         # @param models [Array<String>] as given to -m, possibly comma-separated
         # @param options [Hash] the parsed flags, whose settings override the lineup's
         # @return [Array<Models::Contender>]
@@ -30,12 +34,19 @@ module LLM
 
         private
 
+        # Spelled as the lineup spells them. The lineup ignores a nil, so an absent flag changes nothing.
+        #
+        # @param options [Hash] the parsed flags
         # @return [Hash{String => Object}] the setting flags that were given
         def overrides(options)
           { "effort" => options[:effort], "temperature" => options[:temperature], "max_tokens" => options[:max_tokens] }
         end
 
         # A refused model is reported rather than run, failed and billed.
+        #
+        # @param found [Array<Models::Contender>]
+        # @return [Array<Models::Contender>] those the suite can ask
+        # @raise [Error] when no provider serves one of them, or none is admitted
         def admit(found)
           found.each { @providers.for(it) } # an unserved id fails here, before anything is spent
           admitted, refusals = @providers.admit(found, request_types: @config.request_types)

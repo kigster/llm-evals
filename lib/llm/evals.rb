@@ -8,6 +8,7 @@ require "dry/cli/ui"
 require "dry/cli/autocomplete/command"
 require "zeitwerk"
 
+# Home of the gem; everything it defines sits under {Evals}.
 module LLM
   # A generic evaluation runner with a one-way boundary. The consumer suite
   # registers an {Actions::Adapter}, which runs one {Datasets::Case} against a {Models::Model} and
@@ -16,6 +17,7 @@ module LLM
   # to the leaderboard, is this gem's, and none of it knows what is being
   # evaluated.
   module Evals
+    # The base of every error the gem raises on purpose.
     class Error < StandardError; end
 
     # Raised by a command that needs an optional gem the bundle does not hold.
@@ -54,6 +56,8 @@ module LLM
         @configuration = nil
       end
 
+      # A suite needs both halves of the boundary, so a helper that set only one does not count.
+      #
       # @return [Boolean] whether a helper has registered an adapter and a scorer
       def configured? = configuration.complete?
 

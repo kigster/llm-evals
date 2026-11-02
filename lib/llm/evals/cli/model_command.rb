@@ -13,6 +13,10 @@ module LLM
       class ModelCommand < Command
         include Formatting
 
+        # Gives each subclass the model flags, since dry-cli starts every subclass with no options.
+        #
+        # @param subclass [Class<ModelCommand>]
+        # @return [void]
         def self.inherited(subclass)
           super
           ModelOptions.apply(subclass)
@@ -20,6 +24,13 @@ module LLM
 
         # The run every model command makes; subclasses add what prints per run
         # through {#details}.
+        #
+        # @param models [Array<String>] as given to -m, possibly comma-separated
+        # @param dataset [Array<String>] as given to -d, possibly comma-separated
+        # @param dry_run [Boolean] print the matrix and spend nothing
+        # @param options [Hash{Symbol => Object}] the other parsed flags
+        # @return [void]
+        # @raise [Error] when nothing can run, or once the error budget is spent
         def call(models:, dataset:, dry_run:, **options)
           config = lineup(options)
           weigh(config)
@@ -62,21 +73,31 @@ module LLM
         # @return [void]
         def details(_summaries) = nil
 
+        # A file named by --config may use the names of the suite's providers.
+        #
+        # @param options [Hash] the parsed flags
         # @return [Config] the lineup: --config, else the suite's
         def lineup(options) = options[:config] ? Config.new(File.expand_path(options[:config]), providers:) : configuration.lineup
 
+        # The suite's, which every lineup and saved report is read against.
+        #
         # @return [Providers::Registry]
         def providers = configuration.providers
 
+        # The suite's; it supplies the metrics until a saved snapshot replaces them.
+        #
         # @return [Scoring::Scorer]
         def scorer = configuration.scorer
 
+        # The saved snapshot's once reporting has begun, so a report shows what was saved.
+        #
         # @return [Array<Scoring::Metric>]
         def metrics = @report_metrics || scorer.metrics
 
         # Reads the file's weights before anything is spent, so a bad one fails
         # the run rather than the report at its end.
         #
+        # @param config [Config]
         # @return [Scoring::WeightedScore, nil] nil when the file sets none
         # @raise [Error] on a bad weight
         def weigh(config)
@@ -86,6 +107,11 @@ module LLM
         end
 
         # Env, the tracker's gems and key, hooks, provider clients, then the catalogs.
+        #
+        # @param contenders [Array<Models::Contender>]
+        # @param trackers [TrackerResolver]
+        # @return [void]
+        # @raise [Error] when a needed variable or gem is missing
         def setup!(contenders, trackers)
           configuration.runtime.setup!(providers: providers.used_by(contenders), tracker: trackers.remote)
           providers.verify!(contenders)
@@ -93,12 +119,18 @@ module LLM
 
         # What -n prints: every experiment that would run, and where the
         # refusals went, if there were any.
+        #
+        # @param datasets [Array<String>]
+        # @param contenders [Array<Models::Contender>]
+        # @return [void]
         def matrix(datasets, contenders)
           rows = datasets.product(contenders).map { |name, c| [name, c.model, c.effort, c.temperature, c.max_tokens] }
           table(rows, header: %w[dataset model effort temp max_tokens])
           save_warnings
         end
 
+        # Filled by the selector and the pool, and written out only by {#save_warnings}.
+        #
         # @return [Results::Warnings] what this command has held back from the screen
         def warnings = @warnings ||= Results::Warnings.new
 
@@ -109,7 +141,11 @@ module LLM
         # @param output [String, nil] what -o was given: nil, "-", "" for the default file, or a path
         # @param open [Boolean]
         # @param scores [Boolean] also print every experiment by score
-        # @param format [String] `tui`, `html` or `json`
+        # @param format [String, nil] `tui`, `html` or `json`
+        # @param config [Config]
+        # @param options [Hash] the parsed flags
+        # @param run_options [Hash] what the saved report says about its run; see {RunRecord#to_h}
+        # @param details [Proc, nil] prints what comes before the leaderboard, given the summaries shown
         # @return [void]
         def report(summaries, config:, options:, run_options:, output:, open:, scores: false, format: nil, &details)
           dispatcher = report_dispatcher(config, options)
@@ -124,6 +160,12 @@ module LLM
           end
         end
 
+        # Hands over the command's streams only through a {ReportDispatcher::Console},
+        # so that no output ever sees the command.
+        #
+        # @param config [Config]
+        # @param options [Hash] the parsed flags
+        # @return [ReportDispatcher]
         def report_dispatcher(config, options)
           ReportDispatcher.new(config:,
             options:,
@@ -137,6 +179,17 @@ module LLM
               status: ->(level, text) { status_box(level, text, stream: err) }))
         end
 
+        # Draws the terminal view, says where a report file went, saves the warnings,
+        # and opens the best experiment on its tracker.
+        #
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @param output [String, nil] what -o was given
+        # @param open [Boolean] open the best experiment's tracker page
+        # @param scores [Boolean] also print every experiment by score
+        # @param totals_mode [String] `overall`, `variant` or `both`
+        # @param run_options [Hash] what the call statistics are read from
+        # @param details [Proc, nil] prints what comes before the statistics, given the summaries shown
+        # @return [void]
         def terminal_report(summaries, output:, open:, scores:, totals_mode:, run_options:, &details)
           terminal = LLM::Evals::Render::Reports::Terminal.new(invocation:, writing_to: method(:writing_to), leaderboard: method(:leaderboard))
           path = terminal.call(summaries:, output:, scores:, totals_mode:) do |shown|
@@ -169,7 +222,9 @@ module LLM
         # Points the tables and boxes at another stream while the block runs.
         # They keep the screen's width.
         #
-        # @param io [IO, nil] nil to leave them on the screen
+        # @param io [IO, Dry::CLI::UI::Report, nil] nil to leave them on the screen
+        # @yield with the stream swapped
+        # @return [Object] what the block returns
         def writing_to(io)
           return yield if io.nil?
 
@@ -186,12 +241,23 @@ module LLM
           end
         end
 
+        # A snapshot's metrics may name their own primary; otherwise the scorer's stands.
+        #
+        # @return [Scoring::Metric]
         def primary = metrics.find(&:primary) || scorer.primary
 
+        # One per command, so the bars and the tables agree.
+        #
+        # @return [ModelColors]
         def model_colors = @model_colors ||= ModelColors.new
 
         # Built per call: {#report} swaps the metrics and the weights for those of
         # the saved snapshot, and {#writing_to} swaps the stream, before this runs.
+        #
+        # @param summaries [Array<Actions::Experiment::Summary>]
+        # @param scores [Boolean] also print every experiment by score
+        # @param totals_mode [String] `overall`, `variant` or `both`
+        # @return [void]
         def leaderboard(summaries, scores: false, totals_mode: "overall")
           standings = Standings.new(metrics:, primary:, weighted: @weighted)
           Leaderboard.new(standings:, table: method(:table), out:, pastel:, colors: model_colors)
