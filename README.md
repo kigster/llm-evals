@@ -8,15 +8,20 @@ A flexible CLI for running multi-case evaluation suites and comparing LLMs and p
 
 > [!IMPORTANT]
 > This gem is not affiliated with the excellent [RubyLLM](https://rubyllm.com/) gem, though it uses RubyLLM under the hood.
-
-> [!NOTE]
-> The `llm-evals` gem installs two commands: `evals` and `llm-evals`. Use `llm-evals` if another installed package already provides the `evals` command. The CLI and runner use [Dry.rb](https://dry-rb.org/), and the default model connection uses OpenRouter.
 >
-> The gem also supports OpenTelemetry and can send evaluation data to services such as [Braintrust](https://braintrust.ai) and [W&B Weave](https://wandb.ai/site/weave/). Some design ideas came from [Pydantic Evals](https://pydantic.dev/logfire/evals).
+> The `llm-evals` gem installs two commands: `evals` and `llm-evals`. Use `llm-evals` if another installed package already provides the `evals` command. The CLI and the runner uses [dry-rb](https://dry-rb.org/) and my extensions [dry-cli.tools](https://dry-cli.tools).
 >
-> I originally developed the gem for [Qualified.At](https://qualified.at), a Ruby on Rails SaaS product.
+> In order run evals against pretty much any model, you need an account, with credits, on an [OpenRouter](https://openrouter.ai), and set the `OPENROUTER_API_KEY` to the key generated in OpenRouter.
+>
+> If you also want to include [Typesafe's Jev model](https://typesafe.ai/blog/introducing-system-one-models-and-jev), this gem has a direct connector for Jev, so you'll need to set `TYPESAFE_API_KEY` in your environment as well.
 
-## Evals are unit tests for probabilistic software
+______________________________________________________________________
+
+The gem also supports OpenTelemetry and can send evaluation data to services such as [Braintrust](https://braintrust.ai) and [W&B Weave](https://wandb.ai/site/weave/). Some design ideas came from [Pydantic Evals](https://pydantic.dev/logfire/evals).
+
+> _I originally developed this gem for my fremium product [Qualified.At](https://qualified.at), a Ruby on Rails SaaS product._
+
+## Evals are unit tests for probabilistic software made by AI
 
 An eval checks whether a model meets the behavior you expect on a set of representative cases. Repeating the same cases lets you measure how prompts, parameters, and models affect the results. Your scorer decides whether those results are good; the eval makes the comparison consistent.
 
@@ -28,6 +33,8 @@ An eval checks whether a model meets the behavior you expect on a set of represe
 - [Eval-Driven System Design: From Prototype to Production](https://developers.openai.com/cookbook/examples/partners/eval_driven_system_design/receipt_inspection) (OpenAI)
 - [Independent Eval Research](https://www.braintrust.dev/evals) (Braintrust)
 - [How to Build an LLM Eval Pipeline in GitHub Actions](https://www.braintrust.dev/articles/llm-eval-pipeline-github-actions) (Braintrust)
+
+______________________________________________________________________
 
 ### A real-world example: Qualified.At
 
@@ -49,13 +56,18 @@ A tax customer might write: *"I'm married with three children, filing jointly, h
 When we built Qualified.At, it wasn't clear which provider or model would extract answers most accurately from unstructured text and map them to a JSON schema. Accuracy matters, but so do latency and cost. At 1,000 leads, a cost of $0.0002 per call adds up to $0.20; a cost of $0.50 per call adds up to $500.
 
 > [!IMPORTANT]
-> So, **which model captures the most answers**, **assigns them correctly**, **avoids hallucinations**, and **doesn't miss details**? We want accuracy with low cost and low latency. If a user waits 30 seconds to get to the next question, that's a problem. \*\*That question is why I built this gem. \*\*
+> So, **which model captures the most answers**, **assigns them correctly**, **avoids hallucinations**, and **doesn't miss details**? We want accuracy with low cost and low latency. If a user waits 30 seconds to get to the next question, that's a problem. **That very question is why I built this gem.**
 
 ______________________________________________________________________
 
 ## Weighted Scoring
 
-Most importantly (and this is so often skipped over in Eval design), is a **single weighted score**, that attaches fixed weights to various metrics. So if the **cost** is the most important factor, we give the cost the largest weight. If the **accuracy** is the most important, then it gets the highest weight. The weights configuration handles metrics that improve when they increase, as well as those that improve when they decrease.
+Quite importantly, and often skipped over in the Eval design, is a concept of a **single weighted score**, that attaches fixed weights to various metrics.
+
+Evals are naturally a **multi-variate optimization problem**, something that has been solved in statistics and operations research many decades ago.
+
+> [!NOTE]
+> So if the **cost** is the most important factor, we give the cost the largest weight. If the **accuracy** is the most important, then it gets the highest weight. The weights configuration handles metrics that improve when they increase, as well as those that improve when they decrease.
 
 Here is a weight section definitions from the YAML configuration file `evals/.llm-evals.config.yml` (see below) that generated the HTML report which follows:
 
@@ -73,11 +85,11 @@ evals run
 ```
 
 > [!NOTE]
-> You need just those two because the evals go through openrouter, and the only exception at the moment is the Jev, which has a direct driver.
+> You need just those two because the evals go through ***OpenRouter***, and the only exception at the moment is Jev, which has a direct driver.
 
-The following screenshot of an HTML report from the Evals in [Qualified.At](https://qualified.at) application, which compares various models on accuracy, completeness, latency, cost, and other metrics for the extraction task of the first question the lead answers.
+The following is a screenshot of an HTML report from running evals in the [Qualified.At](https://qualified.at) Rails application, which compares various models on accuracy, completeness, latency, cost, and other metrics for the extraction task of the first question the lead answers.
 
-I set the temperature to 0.1 to get the least "creative" and most "precise" results, and for most models I am trying two sets of effort: "high" and "low":
+I set the *temperature* to 0.1 to get the least "creative" and most "precise" results, and for most models I am trying two sets of effort: "*high*" and "*low*":
 
 ![HTML Report](docs/img/qualified-at-evals.avif)
 
@@ -175,13 +187,16 @@ The recipes change into each suite's folder and set `RUBYLIB` for the config-onl
 
 ```text
 $ bundle exec exe/evals cases
+
 ┌ Info ────────────────────────────────────────────────────────────────────────┐
 │ Evals configuration: config_only_suite                                       │
 │ File: spec/fixtures/config_only_suite/evals/.llm-evals.config.yml            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-A file the search finds runs from its project, the parent of `evals/` when it is inside one, so a relative `-o` lands there too. Your shell stays where it was. That green box is the first thing a run prints, and it follows the help. When there is no file, the box is a yellow warning. `--no-search` turns the search off, and `-C`/`--config` skips it.
+#### What is this?
+
+A file the search above ran, and found the eval suite four directories deep. Your shell stays where it was. That green box is the first thing a run prints, and it follows the help. When there is no file, the box is a yellow warning. `--no-search` turns the search off, and `-C`/`--config` skips it.
 
 ### The toy suite (`eval_helper.rb` style)
 
@@ -295,18 +310,26 @@ class MyAdapter < LLM::Evals::Actions::Adapter
 
   def call(kase, model:)
     provider_response = model.complete(
-      system: MyGem.system_prompt(@schema), user: kase.input, json: true)
-    
+      system: MyGem.system_prompt(@schema), user: kase.input, json: true
+    )
+
     # The production parser, so scores reflect production.
     output = MyGem.parse(provider_response.text)
-    LLM::Evals::Results::Reply.new(output: output, raw: provider_response.text, usage: provider_response.usage)
+    LLM::Evals::Results::Reply.new(
+      output: output,
+      raw:    provider_response.text,
+      usage:  provider_response.usage
+    )
   rescue MyGem::NotJSON => e
     # The model's failure: scored 0.
-    LLM::Evals::Results::Reply.new(error: e.message, raw: provider_response&.text)
+    LLM::Evals::Results::Reply.new(
+      error: e.message,
+      raw:   provider_response&.text
+    )
   end
 
   # What the scorer needs beyond the case.
-  def context(kase) = { schema: @schema }
+  def context(_kase) = { schema: @schema }
 
   # Offline, for `llm-evals verify`.
   def verify(dataset) = MyGem.schema_problems(dataset)
@@ -316,16 +339,16 @@ class MyScorer < LLM::Evals::Scoring::Scorer
   def metrics
     [
       LLM::Evals::Scoring::Metric.new(
-        name: "field_accuracy",
+        name:        "field_accuracy",
         description: "Mean per-field score.",
-        primary: true
+        primary:     true
       ),
       LLM::Evals::Scoring::Metric.new(
-        name: "exact_match",
+        name:        "exact_match",
         description: "1 when every field is right."
       ),
       LLM::Evals::Scoring::Metric.new(
-        name: "restraint",
+        name:        "restraint",
         description: "Of the fields the text never answers, the share left null."
       )
     ]
@@ -337,15 +360,15 @@ class MyScorer < LLM::Evals::Scoring::Scorer
     misses = scores.reject { |_, v| v == 1.0 }.keys
 
     LLM::Evals::Results::Score.new(
-      value: mean,
-      metrics: {
+      value:       mean,
+      metrics:     {
         "field_accuracy" => mean,
-        "exact_match" => scores.values.all?(1.0) ? 1.0 : 0.0,
+        "exact_match"    => scores.values.all?(1.0) ? 1.0 : 0.0,
         # nil: this case does not apply; it is skipped, not zeroed.
-        "restraint" => nil
+        "restraint"      => nil
       },
-      diagnostics: misses.to_h do |f| 
-        [f, { want: kase.expected[f], got: reply.output[f] }] 
+      diagnostics: misses.to_h do |f|
+        [f, { want: kase.expected[f], got: reply.output[f] }]
       end
     )
   end
@@ -365,6 +388,7 @@ LLM::Evals.configure do |c|
   # After the env files load, before any model is called.
   c.before_run { MyGem.reset_configuration! }
 end
+
 ```
 
 A complete, runnable suite lives in [`spec/fixtures/toy_suite/evals/`](spec/fixtures/toy_suite/evals/): two datasets, two variants, the gem's own `Testing::EchoAdapter` and a fake provider. It runs without a network.
@@ -444,7 +468,8 @@ openrouter:                  # requires OPENROUTER_API_KEY; every entry takes a 
         - model: claude-fable-5                 # both limits
           rate_limit: { burst: 5, per_minute: 20 }
         - model: claude-haiku-5.5
-          effort: [default, low, high]          # a list expands into one contender per value
+          # a list expands into one contender per value
+          effort: [default, low, high]              
     openai:                                     # no limit of its own
       models:
         - model: gpt-6.1-sol
@@ -452,9 +477,9 @@ openrouter:                  # requires OPENROUTER_API_KEY; every entry takes a 
       models:
         - model: jev-router                     # Jev on OpenRouter, a chat model
 
-typesafe:                    # requires TYPESAFE_API_KEY; request type "typesafe": noul, choice, score
+typesafe:  # requires TYPESAFE_API_KEY; request type "typesafe": noul, choice, score
   models:
-    - jev-latest             # a bare name is the same as `- model: jev-latest`
+    - jev-latest  # a bare name is the same as `- model: jev-latest`
 ```
 
 **Provider sections.** Each top-level key with `vendors:` or `models:` names a provider. An entry under `vendors:` becomes `<vendor>/<model>`, the OpenRouter id. An entry under `models:` becomes the provider's prefix and the name, such as `typesafe/jev-latest`. The contender carries its provider, so a direct `typesafe/jev-latest` and the OpenRouter chat model `typesafe/jev-router` never get confused. An unknown provider or key is a configuration error naming the file. The old top-level `vendors:` and `direct:` are errors too; `evals upgrade-config` rewrites them, keeping your comments and leaving `<file>.bak`, and `-n` prints the result instead.
@@ -466,6 +491,8 @@ typesafe:                    # requires TYPESAFE_API_KEY; request type "typesafe
 **Retries.** RubyLLM's retries are off. Rate limits, overloads, server errors and dropped connections are retried up to 5 attempts in all, and a retry shuts that vendor for every thread, for as long as `Retry-After` says or for 1, 2, 4 then 8 seconds when it says nothing. A provider asking for more than 5 minutes is not retried; the case counts as an error.
 
 #### Weighted Score
+
+We already chatted about the weghted score above, but this is a deeper dive.
 
 > [!IMPORTANT]
 > This is one of those features you never think you'd need, until you realize your results are sortable by a single column and it does not incorporate all of the others! What to do!? The answer is right here. Create a new score, weighted because it gives more or less weight to various resulting scores, and supports both results that are better when they are smaller (latency) and the ones that are better when they are larger (match %, accuracy %), etc.s
