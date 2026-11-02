@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module LLM
   module Evals
     # Every command the executable answers to. The help's title and
@@ -8,19 +6,35 @@ module LLM
     module CLI
       extend Dry::CLI::Registry
 
+      def self.header(configuration = nil)
+        p = Pastel.new
+        p.green.inverse("\n #{Runtime::Configuration::DEFAULT_NAME} ") +
+          p.yellow.inverse(" v#{VERSION} ") +
+          p.cyan.inverse.bold(" © 2026 Konstantin Gredeskoul, MIT License     ") +
+          p.cyan("") + p.reset("\n") +
+          (configuration ? p.yellow.inverse("\n     Eval Configuration: ") + p.magenta.inverse("  #{configuration.name}  ") : "") +
+          p.magenta("") + p.reset("\n")
+      end
+
       # What users type, so what the help and shell completion are written for.
       # exe/llm-evals exists only for a system where `evals` is taken.
-      PROGRAM = "evals"
+      PROGRAM = "evals".freeze
 
       Dry::CLI::Help::Screens::Command.prepend(OptionGroups)
 
       Dry::CLI::Help.configure do
         configuration = LLM::Evals.configuration
-        title configuration.name == Runtime::Configuration::DEFAULT_NAME ? PROGRAM : "#{PROGRAM} (#{configuration.name})"
-        types = configuration.providers.uniq(&:request_type).map { "#{it.request_type} (#{it.request_type_description})" }
+
+        title ::LLM::Evals::CLI.header(configuration)
+
+        types = configuration.providers.uniq(&:request_type).map do |provider|
+          "#{provider.request_type} (#{provider.request_type_description})"
+        end
+
         description "#{configuration.description} Request types: #{types.join("; ")}."
 
-        columns = IO.console&.winsize&.last || 80
+        columns = (IO.console&.winsize&.last || 80).clamp(60, 90)
+
         width columns.clamp(60, 120)
         exit_code_without_arguments 0
 

@@ -31,6 +31,12 @@ module LLM
         @configuration ||= Runtime::Configuration.new
       end
 
+      # The root of the gem, which holds the default config and the CLI.
+      # @return [String]
+      def root
+        @root ||= File.expand_path("../..", __dir__)
+      end
+
       # Builds the suite's configuration. Called once from the eval helper.
       #
       # @example evals/eval_helper.rb
