@@ -20,6 +20,24 @@ RSpec.describe LLM::Evals::CLI::ProgressBars do
     expect(bars.send(:row, job, 40)).to match(%r{\Afake/one {33}.* 100%  3/3  in 1\.5s|fake/one +\S+ 100%  3/3  in 1\.5s})
   end
 
+  describe "#pausing" do
+    let(:drawn) { terminal.instance_variable_get(:@io).string }
+
+    it "draws nothing while the block runs, then draws again from a clean position" do
+      bars.instance_variable_set(:@drawn, 2)
+      during = nil
+      result = bars.pausing do
+        bars.send(:redraw)
+        during = drawn.dup
+        :answer
+      end
+      expect(during).to be_empty
+      expect(result).to eq(:answer)
+      expect(drawn).to include("fake/one")
+      expect(drawn).not_to match(/\e\[2A/)
+    end
+  end
+
   describe ".labels" do
     let(:runs) do
       [["01-bookkeeping-cfo", "moonshotai/kimi-k3", "effort=low t=0.2"], ["clear", "fake/one", "effort=default t=default"]].map do |dataset, id, label|

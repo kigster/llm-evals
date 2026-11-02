@@ -74,6 +74,23 @@ module LLM
           end
         end
 
+        # Stops drawing while the block runs, so a question can use the screen, then
+        # starts again below it. The widget's own position no longer means anything by
+        # then, so nothing is overwritten.
+        #
+        # @yieldreturn [Object]
+        # @return [Object] what the block returns
+        def pausing
+          lock.synchronize { @paused = true }
+          yield
+        ensure
+          lock.synchronize do
+            @paused = false
+            @drawn = 0
+            redraw if live?
+          end
+        end
+
         private
 
         # Overrides `Dry::CLI::UI::Widgets::Multi#label_width`: never under {LABEL_WIDTH}, and with room for the indent.
@@ -135,6 +152,8 @@ module LLM
         #
         # @return [void]
         def redraw
+          return if @paused
+
           drawn = rows
           cursor = terminal.cursor
           up = @drawn.positive? ? cursor.up(@drawn) : ""
