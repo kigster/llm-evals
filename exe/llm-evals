@@ -4,6 +4,9 @@
 # No Bundler here: a Gemfile in the user's directory must not decide which
 # gems load. The suite's own eval_helper.rb may `require "bundler/setup"`.
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+
+# warn prints nothing under -W0, and the welcome is only ever shown once.
+# rubocop:disable Style/StderrPuts
 require "fileutils"
 require "yaml"
 require "date"
@@ -28,14 +31,14 @@ module LLM
       FileUtils.mkdir_p(SEMAPHORE_DIR)
       File.write(SEMAPHORE_FILE, { WARNING_HASH_KEY => DateTime.now.to_s }.to_yaml)
 
-      warn "\e[0;33mWelcome to the llm-evals CLI!\n\n"
+      $stderr.puts "\e[0;33mWelcome to the llm-evals CLI!\n\n"
 
-      warn "\e[1;31mNOTE:  \e[0;33mThis gem comes with an executable named \e[1;32mevals\e[0;33m.\n"
-      warn "       You invoked 'llm-evals'. While we prefer that you use 'evals' for the CLI,"
-      warn "       we understand that sometimes commands such as 'evals' may clash with others."
-      warn "       For this reason you can use \e[1;32mllm-evals\e[0;33m if you prefer moving forward.\e[0m"
-      warn ""
-      warn "This message won't be shown again, and we thank you for using llm-evals!"
+      $stderr.puts "\e[1;31mNOTE:  \e[0;33mThis gem comes with an executable named \e[1;32mevals\e[0;33m.\n"
+      $stderr.puts "       You invoked 'llm-evals'. While we prefer that you use 'evals' for the CLI,"
+      $stderr.puts "       we understand that sometimes commands such as 'evals' may clash with others."
+      $stderr.puts "       For this reason you can use \e[1;32mllm-evals\e[0;33m if you prefer moving forward.\e[0m"
+      $stderr.puts
+      $stderr.puts "This message won't be shown again, and we thank you for using llm-evals!"
 
       require "io/console"
 
@@ -51,7 +54,7 @@ module LLM
           sleep delta
           waited += delta
           if waited > 20
-            warn "\n      No key pressed after 20 seconds, continuing..."
+            $stderr.puts "\n      No key pressed after 20 seconds, continuing..."
             break
           end
         end
@@ -59,6 +62,8 @@ module LLM
     end
   end
 end
+
+# rubocop:enable Style/StderrPuts
 
 require "llm/evals"
 LLM::Evals::Launcher.new(ARGV).execute!
