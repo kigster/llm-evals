@@ -49,16 +49,45 @@ A tax customer might write: *"I'm married with three children, filing jointly, h
 When we built Qualified.At, it wasn't clear which provider or model would extract answers most accurately from unstructured text and map them to a JSON schema. Accuracy matters, but so do latency and cost. At 1,000 leads, a cost of $0.0002 per call adds up to $0.20; a cost of $0.50 per call adds up to $500.
 
 > [!IMPORTANT]
-> Which model captures the most answers, assigns them correctly, avoids hallucinations, and doesn't miss details? We want accuracy with low cost and low latency. If a user waits 30 seconds to get to the next question, that's a problem.
+> So, **which model captures the most answers**, **assigns them correctly**, **avoids hallucinations**, and **doesn't miss details**? We want accuracy with low cost and low latency. If a user waits 30 seconds to get to the next question, that's a problem. \*\*That question is why I built this gem. \*\*
 
-That question is why I built this gem. The report below compares models on accuracy, completeness, latency, cost, and other metrics for this extraction task.
+______________________________________________________________________
 
-![LLM evaluation HTML report](docs/img/llm-evals-html-report.avif)
+## Weighted Scoring
+
+Most importantly (and this is so often skipped over in Eval design), is a **single weighted score**, that attaches fixed weights to various metrics. So if the **cost** is the most important factor, we give the cost the largest weight. If the **accuracy** is the most important, then it gets the highest weight. The weights configuration handles metrics that improve when they increase, as well as those that improve when they decrease.
+
+Here is a weight section definitions from the YAML configuration file `evals/.llm-evals.config.yml` (see below) that generated the HTML report which follows:
+
+![weights](docs/img/yaml-weights.avif)
+
+## Running Evals
+
+Considering your `evals` folder is setup correctly, and the config file lives right under the `evals`, as `.llm-evals.config.yml`, you should just be able to run:
+
+```bash
+export OPENROUTER_API_KEY=....
+export TYPESAFE_API_KEY=...
+
+evals run
+```
 
 > [!NOTE]
-> *The screenshot is a little out of date. I later reversed the model order so the best scores appear at the top. In this run, Anthropic's `claude-haiku-5.5` was the best fit for my priorities: speed, cost, and accuracy.*
+> You need just those two because the evals go through openrouter, and the only exception at the moment is the Jev, which has a direct driver.
 
-I had used evals before and wanted to understand the ideas better and build something reusable for the Ruby community. Since this is a CLI tool, I use Dry.rb utilities such as `dry-cli`. I also maintain three extensions at [dry-cli.tools](https://dry-cli.tools).
+The following screenshot of an HTML report from the Evals in [Qualified.At](https://qualified.at) application, which compares various models on accuracy, completeness, latency, cost, and other metrics for the extraction task of the first question the lead answers.
+
+I set the temperature to 0.1 to get the least "creative" and most "precise" results, and for most models I am trying two sets of effort: "high" and "low":
+
+![HTML Report](docs/img/qualified-at-evals.avif)
+
+### A Specific Experiment
+
+While the above shows the summarized results across 10 DSL examples, each with 4 prompts (so 40 total), the following screenshot from the same HTML report shows just one DSL use-case (tax collection) and how different the results are.
+
+I've highlighted in green the top models, their low pricing, and the overall winner for tax preparation — and not that in this case it's not the same model as the global winner. This is important.
+
+![taxes](docs/img/one-dataset-results.avif)
 
 ## Datasets
 
