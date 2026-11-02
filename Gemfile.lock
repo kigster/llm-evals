@@ -69,6 +69,9 @@ GEM
     cucumber-tag-expressions (8.1.0)
     debug_inspector (1.2.0)
     diff-lcs (1.6.2)
+    docscribe (1.6.2)
+      parser (>= 3.3)
+      prism (~> 1.8)
     dotenv (3.2.0)
     dry-cli (1.4.1)
     dry-cli-autocomplete (0.6.0)
@@ -293,6 +296,7 @@ DEPENDENCIES
   braintrust (~> 0.6)
   bundler-audit (~> 0.9)
   coverage-badge
+  docscribe
   erb (~> 6.0.4)
   llm-evals!
   opentelemetry-exporter-otlp (~> 0.30)
@@ -330,6 +334,7 @@ CHECKSUMS
   cucumber-tag-expressions (8.1.0) sha256=9bd8c4b6654f8e5bf2a9c99329b6f32136a75e50cd39d4cfb3927d0fa9f52e21
   debug_inspector (1.2.0) sha256=9bdfa02eebc3da163833e6a89b154084232f5766087e59573b70521c77ea68a2
   diff-lcs (1.6.2) sha256=9ae0d2cba7d4df3075fe8cd8602a8604993efc0dfa934cff568969efb1909962
+  docscribe (1.6.2) sha256=6fb0669149026be52e4a9d1ee03bc8fb382d67b346722f1854bc2490f9cb9479
   dotenv (3.2.0) sha256=e375b83121ea7ca4ce20f214740076129ab8514cd81378161f11c03853fe619d
   dry-cli (1.4.1) sha256=b8015bb76c708aa8705a36faf694973e75eeeffca39b89c8e172dc6f66a7d874
   dry-cli-autocomplete (0.6.0) sha256=4a8b904cc802168ad1657a941cdf8dbec1915b4c825a35eb049fb0ac037947ca
