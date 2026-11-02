@@ -220,23 +220,23 @@ module LLM
 
           expect(stderr.string).to include(path)
           expect(File.read(path)).to include(
-                                       "<!doctype html>",
-                                       "Global standings",
-                                       "clear/001",
-                                       "field_accuracy",
-                                       '<th>Provider</th><th>Model</th><th>Effort</th><th>Temperature</th>',
-                                       'table class="sortable"',
-                                       'table class="sortable standings-table"',
-                                       'aria-sort',
-                                       'max-width: 1600px',
-                                       'overscroll-behavior-inline: contain',
-                                       '<th><span>Weighted</span><span>score</span></th>',
-                                       '<th><span>Primary score</span><span>(field_accuracy)</span></th>',
-                                       '<th class="standings-bar"><span>Score</span><span>bar</span></th>',
-                                       '.standings-table .standings-bar { min-width: 300px; }',
-                                       'class="provider">fake',
-                                       'class="model-id">echo'
-                                     )
+            "<!doctype html>",
+            "Global standings",
+            "clear/001",
+            "field_accuracy",
+            '<th>Provider</th><th>Model</th><th>Effort</th><th>Temperature</th>',
+            'table class="sortable"',
+            'table class="sortable standings-table"',
+            'aria-sort',
+            'max-width: 1600px',
+            'overscroll-behavior-inline: contain',
+            '<th><span>Weighted</span><span>score</span></th>',
+            '<th><span>Primary score</span><span>(field_accuracy)</span></th>',
+            '<th class="standings-bar"><span>Score</span><span>bar</span></th>',
+            '.standings-table .standings-bar { min-width: 300px; }',
+            'class="provider">fake',
+            'class="model-id">echo'
+          )
         end
 
         it "shows token totals in the global and per-dataset summaries" do
@@ -333,24 +333,24 @@ module LLM
           run_cli
 
           expect(run_options).to include(
-                                   "command" => "compare",
-                                   "cli"     => hash_including(
-                                     "models"      => ["fake/echo"],
-                                     "dataset"     => ["colors"],
-                                     "case"        => ["clear/001"],
-                                     "effort"      => "high",
-                                     "temperature" => "0.7",
-                                     "totals"      => "variant",
-                                     "local"       => true
-                                   ),
-                                   "results" => hash_including("autosave" => true, "display" => "none", "destination" => destination)
-                                 )
+            "command" => "compare",
+            "cli"     => hash_including(
+              "models"      => ["fake/echo"],
+              "dataset"     => ["colors"],
+              "case"        => ["clear/001"],
+              "effort"      => "high",
+              "temperature" => "0.7",
+              "totals"      => "variant",
+              "local"       => true
+            ),
+            "results" => hash_including("autosave" => true, "display" => "none", "destination" => destination)
+          )
           expect(run_options.fetch("effective")).to include(
-                                                      "cases"      => { "colors" => ["clear/001"] },
-                                                      "contenders" => array_including(hash_including(
-                                                                                        "model" => "fake/echo", "provider" => "fake", "effort" => "high", "temperature" => 0.7, "max_tokens" => 4096
-                                                                                      ))
-                                                    )
+            "cases"      => { "colors" => ["clear/001"] },
+            "contenders" => array_including(hash_including(
+              "model" => "fake/echo", "provider" => "fake", "effort" => "high", "temperature" => 0.7, "max_tokens" => 4096
+            ))
+          )
         end
       end
 
@@ -552,9 +552,9 @@ module LLM
           run_cli
           expect(configuration.adapter).to have_received(:call).twice
           expect(stderr.string).to include("2 calls in a row failed",
-                                           "IOError: closed stream",
-                                           "Models: all 1 affected",
-                                           "run stopped after 2 failed calls in a row")
+            "IOError: closed stream",
+            "Models: all 1 affected",
+            "run stopped after 2 failed calls in a row")
           expect(kernel).to have_received(:exit).with(1)
         end
 
