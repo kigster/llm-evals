@@ -6,14 +6,29 @@ module LLM
     module CLI
       extend Dry::CLI::Registry
 
-      def self.header(configuration = nil)
-        p = Pastel.new
-        p.green.inverse("\n #{Runtime::Configuration::DEFAULT_NAME} ") +
-          p.yellow.inverse(" v#{VERSION} ") +
-          p.cyan.inverse.bold(" © 2026 Konstantin Gredeskoul, MIT License     ") +
-          p.cyan("") + p.reset("\n") +
-          (configuration ? p.yellow.inverse("\n     Eval Configuration: ") + p.magenta.inverse("  #{configuration.name}  ") : "") +
-          p.magenta("") + p.reset("\n")
+      class << self
+        # @return [String] the help's title
+        def header
+          p = Pastel.new
+          p.green.inverse("\n #{Runtime::Configuration::DEFAULT_NAME} ") +
+            p.yellow.inverse(" v#{VERSION} ") +
+            p.cyan.inverse.bold(" © 2026 Konstantin Gredeskoul, MIT License     ") +
+            p.cyan("") + p.reset("\n")
+        end
+
+        # Confirms which evals are running: a green box naming the suite and its
+        # file, or a yellow one saying there is no file.
+        #
+        # @param configuration [LLM::Evals::Runtime::Configuration]
+        # @param color [Boolean]
+        # @param width [Integer] the box's whole width
+        # @return [String]
+        def dataset_conf_label(configuration:, color: false, width: IO.console&.winsize&.last || 80)
+          box = StatusBox.new(width:, color:)
+          return box.render(:warning, configuration.config_missing_message) unless configuration.config_found?
+
+          box.render(:found, "Evals configuration: #{configuration.name}\nFile: #{configuration.relative_config}")
+        end
       end
 
       # What users type, so what the help and shell completion are written for.
@@ -25,7 +40,7 @@ module LLM
       Dry::CLI::Help.configure do
         configuration = LLM::Evals.configuration
 
-        title ::LLM::Evals::CLI.header(configuration)
+        title ::LLM::Evals::CLI.header
 
         types = configuration.providers.uniq(&:request_type).map do |provider|
           "#{provider.request_type} (#{provider.request_type_description})"

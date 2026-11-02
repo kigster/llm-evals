@@ -957,7 +957,7 @@ module LLM
       end
 
       context "without a suite" do
-        let(:argv) { ["cases"] }
+        let(:argv) { ["cases", "--no-search"] }
 
         before { allow(LLM::Evals).to receive(:configuration).and_return(LLM::Evals::Runtime::Configuration.new) }
 

@@ -15,6 +15,12 @@ module LLM
         ENV_VAR = "LLM_EVALS_HELPER"
         # The flag that names a helper, read here because no command declares it.
         FLAG = "--helper"
+        # Turns off the search below the working directory.
+        NO_SEARCH_FLAG = "--no-search"
+        # The flags naming a lineup file, which makes a search pointless.
+        CONFIG_FLAGS = %w[-C --config].freeze
+        # The directory a suite's files live in, under the project.
+        SUITE_DIR = "evals"
 
         # What {.locate} found: a helper to load, a config file to read, or neither.
         #
@@ -22,12 +28,15 @@ module LLM
         #   @return [String, nil] the path of the helper to load
         # @!attribute [r] config
         #   @return [String, nil] the path of the config file
-        Found = Data.define(:helper, :config) do
+        # @!attribute [r] home
+        #   @return [String, nil] the directory to run in, when the search found the suite below this one
+        Found = Data.define(:helper, :config, :home) do
           # Either may be left out, and {.locate} returns neither when it finds nothing.
           #
           # @param helper [String, nil] the path of the helper to load
           # @param config [String, nil] the path of the config file
-          def initialize(helper: nil, config: nil) = super
+          # @param home [String, nil] the directory to run in
+          def initialize(helper: nil, config: nil, home: nil) = super
 
           # @return [Boolean] whether there is anything to load
           def any? = !helper.nil? || !config.nil?
@@ -62,16 +71,36 @@ module LLM
           [rest, path]
         end
 
+        # Pulls `--no-search` out of argv.
+        #
+        # @param argv [Array<String>] the command line; left unchanged
+        # @return [Array(Array<String>, Boolean)] the remaining arguments and whether a search may run
+        def extract_search(argv) = [argv - [NO_SEARCH_FLAG], !argv.include?(NO_SEARCH_FLAG)]
+
+        # @param argv [Array<String>] the command line
+        # @return [Boolean] whether it names a lineup file itself
+        def config_flag?(argv) = argv.any? { CONFIG_FLAGS.include?(it) || it.start_with?("--config=") }
+
+        # The directory a suite is run from: above `evals/`, or the config's own.
+        #
+        # @param config [String] the path of a config file
+        # @return [String]
+        def project_dir(config)
+          dir = File.dirname(config)
+          File.basename(dir) == SUITE_DIR ? File.dirname(dir) : dir
+        end
+
         # The suite to load: the flag, then the variable, then, from the
         # directory upward, the nearest `evals/eval_helper.rb` or, failing
         # that, the nearest `evals/.llm-evals.config.yml` (also found from
-        # inside `evals/` itself).
+        # inside `evals/` itself), then, when allowed, a search below the directory.
         #
         # @param explicit [String, nil] what `--helper` was given
         # @param from [String] the directory to search up from
         # @param env [Hash] the environment
+        # @param search [Boolean] whether to search below the directory when the rest finds nothing
         # @return [Found] absolute paths; empty when there is none
-        def locate(explicit = nil, from: Dir.pwd, env: ENV)
+        def locate(explicit = nil, from: Dir.pwd, env: ENV, search: false)
           candidate = explicit || env[ENV_VAR]
           return Found.new(helper: File.expand_path(candidate, from)) if candidate && !candidate.empty?
 
@@ -81,7 +110,19 @@ module LLM
             return Found.new(helper: helper.to_s, config: config&.to_s) if helper.file?
             return Found.new(config: config.to_s) if config
           end
-          Found.new
+          search ? discover(from) : Found.new
+        end
+
+        # What the search below a directory found, with the helper beside the file, if any.
+        #
+        # @param from [String] the directory to search below
+        # @return [Found] with `home` set; empty when there is none
+        def discover(from)
+          config = Configuration.search_config_file(from: File.expand_path(from))
+          return Found.new unless config
+
+          helper = File.join(File.dirname(config), File.basename(FILE))
+          Found.new(helper: File.file?(helper) ? helper : nil, config: config, home: project_dir(config))
         end
 
         # Loads the helper, once, or roots the configuration at a config-only
@@ -102,7 +143,7 @@ module LLM
             require File.expand_path(found.helper)
           else
             root = File.dirname(found.config)
-            configuration.suite(File.basename(File.dirname(root)), root: root) unless configuration.complete?
+            configuration.suite(File.basename(project_dir(found.config)), root: root) unless configuration.complete?
           end
           true
         end
