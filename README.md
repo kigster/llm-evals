@@ -467,6 +467,10 @@ errors:
 
 Both limits must be met. A case counts as an error when the call raises or the model's reply is an error, such as one that is not JSON. Calls in flight finish, nothing new starts, the report is written from what finished, and the command exits non-zero. Without `errors`, a run never aborts.
 
+#### When every call fails
+
+With no configuration, 100 failed calls in a row pause the run: no new calls start, and it prints the error messages and which models, datasets and cases are affected, or that all of them are. It then asks whether to keep running. If you carry on, another 100 failures in a row ask again. If you stop, the partial results are reported and the command exits 1. `-y` / `--yes` prints the same details and keeps running. When stdin is not a terminal and `--yes` is absent, the run stops, since there is nobody to ask.
+
 #### Request types
 
 `request_types` is required. It identifies the kind of request the suite's adapter sends. The types belong to the providers and show in `llm-evals --help`; a suite only names them:

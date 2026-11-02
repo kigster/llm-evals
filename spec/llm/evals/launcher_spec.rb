@@ -538,6 +538,38 @@ module LLM
         end
       end
 
+      context "when every call fails" do
+        let(:argv) { ["compare", "--local", "--no-open", "-m", "fake/a", "-p", "1", "-j", "1", *flags] }
+        let(:flags) { [] }
+
+        before do
+          stub_const("LLM::Evals::Actions::ErrorStreak::LIMIT", 2)
+          allow($stdin).to receive(:tty?).and_return(false)
+          allow(configuration.adapter).to receive(:call).and_raise(IOError, "closed stream")
+        end
+
+        it "says what failed, stops with nobody to ask, and fails the command" do
+          run_cli
+          expect(configuration.adapter).to have_received(:call).twice
+          expect(stderr.string).to include("2 calls in a row failed",
+            "IOError: closed stream",
+            "Models: all 1 affected",
+            "run stopped after 2 failed calls in a row")
+          expect(kernel).to have_received(:exit).with(1)
+        end
+
+        context "with --yes" do
+          let(:flags) { ["-y"] }
+
+          it "keeps calling" do
+            run_cli
+            expect(configuration.adapter).to have_received(:call).at_least(3).times
+            expect(stderr.string).to include("2 calls in a row failed")
+            expect(stderr.string).not_to include("run stopped")
+          end
+        end
+      end
+
       context "with an error limit in the lineup" do
         let(:dir) { Dir.mktmpdir }
         let(:lineup) { File.join(dir, "lineup.yml") }

@@ -11,7 +11,7 @@ module LLM
         # @return [void]
         def self.apply(command)
           command.extend(Dry::CLI::UI::Flags)
-          command.flags(:dry_run, :output)
+          command.flags(:dry_run, :yes, :output)
           command.option :models,
             type:    :array,
             aliases: ["-m"],

@@ -28,10 +28,11 @@ module LLM
         # @param models [Array<String>] as given to -m, possibly comma-separated
         # @param dataset [Array<String>] as given to -d, possibly comma-separated
         # @param dry_run [Boolean] print the matrix and spend nothing
+        # @param yes [Boolean] keep running through a streak of failures without asking
         # @param options [Hash{Symbol => Object}] the other parsed flags
         # @return [void]
-        # @raise [Error] when nothing can run, or once the error budget is spent
-        def call(models:, dataset:, dry_run:, **options)
+        # @raise [Error] when nothing can run, once the error budget is spent, or when told to stop
+        def call(models:, dataset:, dry_run:, yes: false, **options)
           config = lineup(options)
           weigh(config)
           trackers = TrackerResolver.new(configuration:, config:, options:, err:)
@@ -43,7 +44,10 @@ module LLM
           setup!(contenders, trackers)
           runs = planner.experiments(datasets, contenders)
           budget = config.error_budget
-          outcome = ExperimentPool.new(console: ui, colors: model_colors, warnings:).call(runs, concurrency: planner.concurrency, budget:)
+          streak = Actions::ErrorStreak.new
+          pause = ErrorPause.new(console: ui, runs:, yes:, notice: ->(level, text) { status_box(level, text, stream: err) })
+          outcome = ExperimentPool.new(console: ui, colors: model_colors, warnings:)
+                                  .call(runs, concurrency: planner.concurrency, budget:, streak:, pause:)
           record = RunRecord.new(command: invocation.action.to_s,
             cli: { models:, dataset:, **options },
             config:,
@@ -63,6 +67,7 @@ module LLM
             options:,
             run_options: record.to_h) { details(it) }
           raise Error, budget.reason if budget&.spent?
+          raise Error, streak.reason if streak.stopped?
         end
 
         private
