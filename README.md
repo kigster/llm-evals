@@ -6,6 +6,8 @@
 
 A flexible CLI for running multi-case evaluation suites and comparing LLMs and prompt configurations.
 
+### [Blog Post on the Subject](https://kig.re/2026/11/02/llm-evals-is-a-ruby-gem-for-testing-probabilistic-assumptions-in-your-AI-datasets.html)
+
 > [!IMPORTANT]
 > This gem is not affiliated with the excellent [RubyLLM](https://rubyllm.com/) gem, though it uses RubyLLM under the hood.
 
