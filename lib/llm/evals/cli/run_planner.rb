@@ -75,7 +75,8 @@ module LLM
           discovery.datasets.tap { raise Error, "no datasets under #{discovery.root}" if it.empty? }
         end
 
-        # Trackers are made new for each experiment; the adapter and the scorer are shared by all.
+        # Trackers are made new for each experiment, and so is the adapter when
+        # the suite registers its class; the scorer is shared by all.
         #
         # @param contender [Models::Contender]
         # @param dataset [String]
@@ -85,7 +86,7 @@ module LLM
           Actions::Experiment.new(
             model:       @configuration.providers.model_for(contender, throttle: @config.throttle),
             cases:       discovery.cases!(dataset:, only: @options[:case]),
-            adapter:     @configuration.adapter,
+            adapter:     @configuration.adapter_for_experiment,
             scorer:      @configuration.scorer,
             parallelism:,
             trackers:    @trackers.for_experiment

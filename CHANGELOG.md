@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix experiments running at once (`-j`) sharing one adapter, so a case could run and be scored with another dataset's `prepare` state. `c.adapter` now also takes the adapter's class and builds one adapter per experiment; a config-only suite's `adapter:` class is built per experiment too. A registered instance is still shared.
+
 - Breaking: `results.display` now defaults to `both`: every run prints the terminal summary, builds the HTML report from its JSON and opens it in the browser. Use `--display tui` or `--no-open` to turn that off.
 
 - Group the `run` and `compare` flags in `--help` under General, TUI and Browser Report.

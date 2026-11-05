@@ -43,7 +43,7 @@ module LLM
       #   LLM::Evals.configure do |c|
       #     c.suite "extract", root: __dir__, env_files: ["../.env"]
       #     c.cases "datasets/*/cases/**/input.txt"
-      #     c.adapter ExtractAdapter.new
+      #     c.adapter ExtractAdapter
       #     c.scorer ExtractScorer.new
       #     c.before_run { MyGem.reset_configuration! }
       #   end
