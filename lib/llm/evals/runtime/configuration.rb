@@ -13,7 +13,7 @@ module LLM
         # The lineup file's name, also searched for by {Helper.locate}.
         DEFAULT_CONFIG = ".llm-evals.config.yml"
 
-        attr_writer :adapter, :scorer
+        attr_writer :scorer
         attr_reader :name,
           :root,
           :env_files,
@@ -24,11 +24,6 @@ module LLM
           :description,
           :config_path,
           :started_in
-
-        # @!attribute [w] adapter
-        #   Registers the adapter, as {#adapter} does with an argument.
-        #   @param value [Actions::Adapter, nil]
-        #   @return [Actions::Adapter, nil]
 
         # @!attribute [w] scorer
         #   Registers the scorer, as {#scorer} does with an argument.
@@ -179,12 +174,30 @@ module LLM
           @cases_glob = glob
         end
 
-        # @param object [Actions::Adapter, nil] setting; reading when nil
-        # @return [Actions::Adapter, nil] nil until one is registered
+        # Registers the adapter, or reads it. Register the class when
+        # {Actions::Adapter#prepare} keeps what it loads: each experiment then
+        # gets an adapter of its own, so experiments running at once never
+        # see each other's dataset. An instance is shared by every experiment.
+        #
+        # @param object [Actions::Adapter, Class<Actions::Adapter>, nil] setting; reading when nil
+        # @return [Actions::Adapter, nil] nil until one is registered; one of the class's, when a class is
         def adapter(object = nil)
-          @adapter = object unless object.nil?
-          @adapter
+          self.adapter = object unless object.nil?
+          @adapter ||= @adapter_class&.new
         end
+
+        # Registers the adapter, as {#adapter} does with an argument.
+        #
+        # @param value [Actions::Adapter, Class<Actions::Adapter>, nil] nil unregisters it
+        # @return [void]
+        def adapter=(value)
+          @adapter_class, @adapter = value.is_a?(Class) ? [value, nil] : [nil, value]
+        end
+
+        # What one experiment runs its cases with.
+        #
+        # @return [Actions::Adapter, nil] a new one when a class is registered; the registered instance otherwise
+        def adapter_for_experiment = @adapter_class ? @adapter_class.new : adapter
 
         # @param object [Scoring::Scorer, nil] setting; reading when nil
         # @return [Scoring::Scorer, nil] nil until one is registered
@@ -270,8 +283,8 @@ module LLM
           rescue LoadError => e
             raise Error, "#{config}: require: #{feature} could not be loaded (#{e.message}); is its gem in the bundle?"
           end
-          @adapter ||= instantiate("adapter", file.adapter_name)
-          @scorer  ||= instantiate("scorer", file.scorer_name) # rubocop:disable Naming/MemoizedInstanceVariableName
+          self.adapter = instantiate("adapter", file.adapter_name)&.class if adapter.nil?
+          @scorer ||= instantiate("scorer", file.scorer_name) # rubocop:disable Naming/MemoizedInstanceVariableName
         end
 
         private

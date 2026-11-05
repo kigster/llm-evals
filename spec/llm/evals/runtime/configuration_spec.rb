@@ -36,6 +36,14 @@ RSpec.describe LLM::Evals::Runtime::Configuration do
       expect(configuration.scorer).to be_a(ToySuite::Evals::Scorer)
     end
 
+    it "makes a new adapter of the file's class for each experiment" do
+      write("require: toy_suite/evals\nadapter: ToySuite::Evals::Adapter\nscorer: ToySuite::Evals::Scorer\n")
+      configuration.require_suite!
+      adapters = Array.new(2) { configuration.adapter_for_experiment }
+      expect(adapters).to all(be_a(ToySuite::Evals::Adapter))
+      expect(adapters.first).not_to be(adapters.last)
+    end
+
     it "lets the helper win and fills only what it left unset" do
       adapter = LLM::Evals::Testing::EchoAdapter.new
       configuration.adapter adapter
@@ -109,6 +117,30 @@ RSpec.describe LLM::Evals::Runtime::Configuration do
       configuration.adapter = nil
       configuration.scorer = nil
       expect(configuration).not_to be_complete
+    end
+
+    it "gives every experiment the registered instance" do
+      expect(configuration.adapter_for_experiment).to be(adapter)
+    end
+  end
+
+  context "with an adapter class" do
+    before { configuration.adapter LLM::Evals::Testing::EchoAdapter }
+
+    it "makes a new adapter for each experiment" do
+      adapters = Array.new(2) { configuration.adapter_for_experiment }
+      expect(adapters).to all(be_a(LLM::Evals::Testing::EchoAdapter))
+      expect(adapters.first).not_to be(adapters.last)
+    end
+
+    it "reads one adapter of that class for verify and the other commands" do
+      expect(configuration.adapter).to be_a(LLM::Evals::Testing::EchoAdapter).and(be(configuration.adapter))
+    end
+
+    it "forgets the class when an instance replaces it" do
+      instance = LLM::Evals::Testing::EchoAdapter.new
+      configuration.adapter = instance
+      expect(configuration.adapter_for_experiment).to be(instance)
     end
   end
 end

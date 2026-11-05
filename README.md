@@ -290,7 +290,7 @@ require "llm/evals"
 require "my_gem"
 
 class MyAdapter < LLM::Evals::Actions::Adapter
-  # Once per dataset, outside the threads.
+  # Once per experiment, before its cases run, outside the threads.
   def prepare(dataset) = @schema = MyGem.schema_for(dataset)
 
   def call(kase, model:)
@@ -360,12 +360,15 @@ end
 LLM::Evals.configure do |c|
   c.suite "extract", root: __dir__, env_files: ["../.env"]
   c.cases "datasets/*/cases/**/input.txt"
-  c.adapter MyAdapter.new
+  # The class, so each experiment gets its own adapter (see below).
+  c.adapter MyAdapter
   c.scorer MyScorer.new
   # After the env files load, before any model is called.
   c.before_run { MyGem.reset_configuration! }
 end
 ```
+
+`c.adapter` takes the adapter's class or an instance. With the class, each experiment builds its own adapter with `MyAdapter.new`, so what `prepare` keeps (here `@schema`) belongs to that experiment alone. That matters because experiments run side by side (`-j`): one instance shared by an `animals` experiment and a `colors` experiment would answer `animals` cases with whichever schema was prepared last. Register an instance only when the adapter keeps no per-dataset state, or needs arguments to build; every experiment then shares it. A config-only suite names a class, so it always gets one adapter per experiment.
 
 A complete, runnable suite lives in [`spec/fixtures/toy_suite/evals/`](spec/fixtures/toy_suite/evals/): two datasets, two variants, the gem's own `Testing::EchoAdapter` and a fake provider. It runs without a network.
 

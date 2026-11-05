@@ -10,8 +10,11 @@ module LLM
       #
       # @abstract Subclass and override {#call}.
       class Adapter
-        # Called once per dataset before its cases run; load what the dataset
-        # shares (a schema, a flow definition) here, outside the threads.
+        # Called once per experiment before its cases run; load what the
+        # dataset shares (a schema, a flow definition) here, outside the
+        # threads. Experiments on other datasets may run at the same time, so
+        # an adapter that keeps what it loads is registered by its class, to
+        # get one instance per experiment (see {Runtime::Configuration#adapter}).
         #
         # @param _dataset [String] the dataset's name
         # @return [void]
