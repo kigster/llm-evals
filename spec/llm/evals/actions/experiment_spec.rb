@@ -108,4 +108,95 @@ RSpec.describe LLM::Evals::Actions::Experiment do
       expect(first.events.select { it.first == :record }.map(&:last)).to all(be_failed)
     end
   end
+
+  context "when a tracker raises" do
+    subject(:experiment) do
+      described_class.new(model: model, cases: cases, adapter: adapter, scorer: scorer, parallelism: 2, trackers: [watcher, failing])
+    end
+
+    let(:watcher) { RecordingTracker.new(url: "https://watcher/exp") }
+    let(:failing) { failing_tracker.new }
+    let(:healthy) { described_class.new(model: model, cases: cases, adapter: adapter, scorer: scorer, parallelism: 2).run }
+    # A remote tracker whose service is down for one callback.
+    let(:failing_tracker) do
+      broken = phase
+      Class.new(RecordingTracker) do
+        def self.name = "Flaky"
+
+        define_method(broken) do |*args|
+          super(*args)
+          raise IOError, "503 Service Unavailable"
+        end
+      end
+    end
+
+    def outcome(summary) = summary.results.map { [it.case.key, it.errored?, it.score&.value] }
+
+    def run_quietly
+      summary = nil
+      expect { summary = experiment.run }.to output(/flaky tracker/).to_stderr
+      summary
+    end
+
+    shared_examples "a tracker that only watches" do
+      it "keeps every case's result as if the tracker were not there" do
+        summary = run_quietly
+        expect(outcome(summary)).to eq(outcome(healthy))
+        expect(summary.errors).to eq(healthy.errors)
+      end
+
+      it "still tells the other trackers everything, once per case" do
+        run_quietly
+        expect(watcher.events.map(&:first)).to eq([:start, *Array.new(cases.size, :record), :finish])
+      end
+
+      it "warns once, naming the experiment, the tracker, the callback and the error" do
+        expect { experiment.run }.to output(
+          "[#{experiment.name}] the flaky tracker failed in #{phase} and gets nothing more from this experiment: " \
+          "IOError: 503 Service Unavailable\n"
+        ).to_stderr
+      end
+
+      it "tells the failed tracker nothing more" do
+        run_quietly
+        expect(failing.events.map(&:first).count(phase)).to eq(1)
+        expect(failing.events.map(&:first).last).to eq(phase)
+      end
+    end
+
+    context "when it fails to record a case" do
+      let(:phase) { :record }
+
+      it_behaves_like "a tracker that only watches"
+
+      it "still writes the local log, with each case once" do
+        dir = Dir.mktmpdir
+        local = LLM::Evals::Trackers::Local.new(dir:)
+        run = described_class.new(model:, cases:, adapter:, scorer:, parallelism: 2, trackers: [local, failing])
+        expect { run.run }.to output(/flaky tracker failed in record/).to_stderr
+        logs = Dir[File.join(dir, "*.json")]
+        expect(logs.size).to eq(1)
+        document = JSON.parse(File.read(logs.first))
+        expect(document.fetch("results").map { it.fetch("case") }).to match_array(cases.map(&:key))
+      ensure
+        FileUtils.remove_entry(dir)
+      end
+    end
+
+    context "when it fails to start" do
+      let(:phase) { :start }
+
+      it_behaves_like "a tracker that only watches"
+    end
+
+    context "when it fails to finish" do
+      let(:phase) { :finish }
+
+      it_behaves_like "a tracker that only watches"
+
+      it "keeps the other tracker's link" do
+        expect(run_quietly.permalink).to eq("https://watcher/exp")
+      end
+    end
+  end
 end

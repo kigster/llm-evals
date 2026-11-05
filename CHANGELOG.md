@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix a tracker that raises ending the whole run: a failed `record` turned a passing case into an error, recorded it twice, then stopped the experiment, so no local log or results were saved. A tracker that raises is now named in the run's warnings and gets no more callbacks for that experiment; the cases and the other trackers carry on.
+
 - Breaking: `results.display` now defaults to `both`: every run prints the terminal summary, builds the HTML report from its JSON and opens it in the browser. Use `--display tui` or `--no-open` to turn that off.
 
 - Group the `run` and `compare` flags in `--help` under General, TUI and Browser Report.
