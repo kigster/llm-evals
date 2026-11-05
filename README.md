@@ -627,6 +627,8 @@ LLM::Evals.configure { |c| c.tracker Weave }
 
 `context` holds `suite:`, `project:`, `project_id:` and `options:` (the tracker's own section of the config file, e.g. `weave: { entity: "team" }`). Return `false` from `enabled?` to turn every callback into a no-op. To target another OTLP backend, subclass `Trackers::Logfire` with different credentials.
 
+A tracker only watches. When one of its callbacks raises, the run records a warning naming the experiment, the tracker, the callback and the error, and that tracker gets no more callbacks for that experiment. The cases, their scores, the other trackers, the local log and the saved results carry on as if it were not there.
+
 ## Environment
 
 | Variable                      | Used for                                                  |

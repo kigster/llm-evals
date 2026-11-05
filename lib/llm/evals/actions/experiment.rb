@@ -7,7 +7,8 @@ module LLM
       # thread pool the gem owns, plus the per-case detail the terminal report
       # needs. Trackers only watch: {Trackers::Local} always, and at most one
       # remote tracker, each told when the experiment starts, when a case
-      # finishes, and what the summary was.
+      # finishes, and what the summary was. A tracker that raises is warned
+      # about and told nothing more; the cases and their results go on.
       class Experiment
         # What one finished experiment reports back. `means` holds one entry
         # per metric plus "score", the mean of each case's overall value;
@@ -132,6 +133,7 @@ module LLM
           @parallelism = [parallelism.to_i, 1].max
           @trackers = trackers.select(&:enabled?)
           @results = {}
+          @failed_trackers = []
           @lock = Mutex.new
           @waited = 0.0
         end
@@ -149,12 +151,12 @@ module LLM
         def run(on_case: nil, stop: nil)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           adapter.prepare(dataset)
-          trackers.each { it.start(self) }
+          notify(:start, self)
           errors = run_locally(on_case, stop)
           # An approximation: it assumes waits fell evenly across the workers. Workers
           # that wait while others run did not hold up the run for that long.
           summary = summarize(errors, nil, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started - (@waited / workers))
-          urls = trackers.map { it.finish(self, summary)&.fetch(:url, nil) }
+          urls = notify(:finish, self, summary).map { it&.fetch(:url, nil) }
           summary.with(permalink: urls.compact.first)
         end
 
@@ -194,9 +196,25 @@ module LLM
         def remember(result)
           @lock.synchronize do
             @results[result.case.key] = result
-            trackers.each { it.record(result) }
+            notify(:record, result)
           end
           result
+        end
+
+        # Tells each tracker that has not failed yet. Callers hold the lock or
+        # run outside the case threads, so a failure is noted by one thread.
+        #
+        # @param callback [Symbol] :start, :record or :finish
+        # @return [Array] what each tracker returned, nil for one that raised
+        def notify(callback, *)
+          (trackers - @failed_trackers).map do |tracker|
+            tracker.public_send(callback, *)
+          rescue StandardError => e
+            @failed_trackers << tracker
+            message = "[#{name}] the #{tracker.name} tracker failed in #{callback} and gets nothing more from this experiment: #{e.class}: #{e.message}"
+            # Not warn, which prints nothing under -W0.
+            $stderr.puts message # rubocop:disable Style/StderrPuts
+          end
         end
 
         # A fixed pool of threads over a queue: `parallelism` cases in flight.
